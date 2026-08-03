@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Schedule · Hoops League{% endblock %}
+{% block content %}
+<div class="flex items-end justify-between gap-3">
+  <div>
+    <h1 class="font-display text-3xl">Schedule</h1>
+    <p class="mt-1 text-sm text-court-500">{% if season %}{{ season.name }}{% else %}No active season{% endif %}</p>
+  </div>
+  {% if nav_is_commissioner %}
+    <a href="{% url 'manage_game_create' %}"
+       class="rounded-lg bg-orange-ball px-3 py-2 text-sm font-semibold text-white">Add game</a>
+  {% endif %}
+</div>
+
+<form method="get" class="mt-4">
+  <label class="sr-only" for="team">Filter by team</label>
+  <select name="team" id="team" class="field-input" onchange="this.form.submit()">
+    <option value="">All teams</option>
+    {% for team in teams %}
+      <option value="{{ team.pk }}" {% if selected_team == team.pk|stringformat:"s" %}selected{% endif %}>
+        {{ team.name }}
+      </option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if games %}
+  <ul class="mt-6 space-y-3">
+    {% for game in games %}
+      <li>
+        <a href="{% url 'game_detail' game.pk %}"
+           class="block rounded-xl border border-court-100 bg-white px-4 py-3">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-court-400">
+                {{ game.tipoff|date:"D, M j · g:i A" }}
+              </p>
+              <p class="mt-1 font-semibold">
+                {{ game.away_team.name }}
+                <span class="font-normal text-court-400">@</span>
+                {{ game.home_team.name }}
+              </p>
+              {% if game.location %}
+                <p class="mt-1 text-sm text-court-500">{{ game.location }}</p>
+              {% endif %}
+            </div>
+            <div class="text-right">
+              {% if game.is_final and game.result %}
+                <p class="font-display text-lg leading-none">
+                  {{ game.result.away_score }}–{{ game.result.home_score }}
+                </p>
+                <p class="mt-1 text-xs uppercase text-court-400">Final</p>
+              {% else %}
+                <span class="rounded-full bg-court-100 px-2 py-1 text-xs text-court-600">Scheduled</span>
+              {% endif %}
+            </div>
+          </div>
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="mt-8 rounded-xl border border-dashed border-court-200 px-4 py-8 text-center text-court-500">
+    No games on the schedule yet.
+  </p>
+{% endif %}
+{% endblock %}

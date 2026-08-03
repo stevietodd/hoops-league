@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Report score · Hoops League{% endblock %}
+{% block content %}
+<p class="text-sm text-court-500">
+  <a href="{% url 'game_detail' game.pk %}" class="hover:text-court-900">← Game</a>
+</p>
+<h1 class="mt-3 font-display text-3xl">Report score</h1>
+<p class="mt-1 text-court-500">{{ game.away_team.name }} @ {{ game.home_team.name }}</p>
+
+<div class="mt-6" id="score-form">
+  {% include "league/partials/score_form.html" %}
+</div>
+{% endblock %}

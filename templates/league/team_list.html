@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Teams · Hoops League{% endblock %}
+{% block content %}
+<h1 class="font-display text-3xl">Teams</h1>
+<p class="mt-1 text-sm text-court-500">Rosters and captains</p>
+
+<ul class="mt-6 space-y-3">
+  {% for team in teams %}
+    <li>
+      <a href="{% url 'team_detail' team.pk %}"
+         class="flex items-center justify-between rounded-xl border border-court-100 bg-white px-4 py-4">
+        <div class="flex items-center gap-3">
+          <span class="flex h-10 w-10 items-center justify-center rounded-full bg-court-100 font-display text-sm"
+                {% if team.color %}style="background: {{ team.color }}22; color: {{ team.color }}"{% endif %}>
+            {{ team.short_name }}
+          </span>
+          <div>
+            <p class="font-semibold">{{ team.name }}</p>
+            <p class="text-sm text-court-500">{{ team.players.count }} player{{ team.players.count|pluralize }}</p>
+          </div>
+        </div>
+        <span class="text-court-300">›</span>
+      </a>
+    </li>
+  {% empty %}
+    <li class="rounded-xl border border-dashed border-court-200 px-4 py-8 text-center text-court-500">
+      No teams yet. Commissioners can add them in Django admin.
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}

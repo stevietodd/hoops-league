@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Log in · Hoops League{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-sm pt-10">
+  <h1 class="font-display text-3xl text-court-900">Sign in</h1>
+  <p class="mt-2 text-court-500">League schedule, standings, and rosters.</p>
+  <form method="post" class="mt-8 space-y-4">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="rounded-lg bg-red-100 px-3 py-2 text-sm text-red-800">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+    <div>
+      <label class="mb-1 block text-sm font-medium" for="id_username">Email</label>
+      <input type="email" name="username" id="id_username" autocomplete="username" required
+             class="field-input" value="{{ form.username.value|default:'' }}">
+      {% if form.username.errors %}<p class="mt-1 text-sm text-red-600">{{ form.username.errors.0 }}</p>{% endif %}
+    </div>
+    <div>
+      <label class="mb-1 block text-sm font-medium" for="id_password">Password</label>
+      <input type="password" name="password" id="id_password" autocomplete="current-password" required
+             class="field-input">
+      {% if form.password.errors %}<p class="mt-1 text-sm text-red-600">{{ form.password.errors.0 }}</p>{% endif %}
+    </div>
+    <button type="submit"
+            class="w-full rounded-lg bg-orange-ball px-4 py-3 font-semibold text-white hover:bg-orange-600">
+      Log in
+    </button>
+  </form>
+</div>
+{% endblock %}

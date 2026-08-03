@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Standings · Hoops League{% endblock %}
+{% block content %}
+<h1 class="font-display text-3xl">Standings</h1>
+<p class="mt-1 text-sm text-court-500">{% if season %}{{ season.name }}{% else %}No active season{% endif %}</p>
+
+{% if standings %}
+  <div class="mt-6 overflow-hidden rounded-xl border border-court-100 bg-white">
+    <table class="w-full text-left text-sm">
+      <thead class="bg-court-100/60 text-xs uppercase tracking-wide text-court-500">
+        <tr>
+          <th class="px-3 py-2.5 font-medium">#</th>
+          <th class="px-3 py-2.5 font-medium">Team</th>
+          <th class="px-3 py-2.5 text-right font-medium">W</th>
+          <th class="px-3 py-2.5 text-right font-medium">L</th>
+          <th class="px-3 py-2.5 text-right font-medium">PCT</th>
+          <th class="hidden px-3 py-2.5 text-right font-medium sm:table-cell">PF</th>
+          <th class="hidden px-3 py-2.5 text-right font-medium sm:table-cell">PA</th>
+          <th class="px-3 py-2.5 text-right font-medium">Diff</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in standings %}
+          <tr class="border-t border-court-100">
+            <td class="px-3 py-3 text-court-500">{{ forloop.counter }}</td>
+            <td class="px-3 py-3 font-semibold">
+              <a href="{% url 'team_detail' row.team.pk %}">{{ row.team.name }}</a>
+            </td>
+            <td class="px-3 py-3 text-right">{{ row.wins }}</td>
+            <td class="px-3 py-3 text-right">{{ row.losses }}</td>
+            <td class="px-3 py-3 text-right tabular-nums">
+              {% if row.games_played %}{{ row.win_pct|floatformat:3 }}{% else %}—{% endif %}
+            </td>
+            <td class="hidden px-3 py-3 text-right sm:table-cell">{{ row.points_for }}</td>
+            <td class="hidden px-3 py-3 text-right sm:table-cell">{{ row.points_against }}</td>
+            <td class="px-3 py-3 text-right tabular-nums {% if row.point_diff > 0 %}text-court-700{% elif row.point_diff < 0 %}text-red-600{% endif %}">
+              {% if row.point_diff > 0 %}+{% endif %}{{ row.point_diff }}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="mt-8 text-court-500">No standings to show yet.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Manage · Hoops League{% endblock %}
+{% block content %}
+<h1 class="font-display text-3xl">Manage</h1>
+<p class="mt-1 text-sm text-court-500">Commissioner tools</p>
+
+<div class="mt-6 grid gap-3 sm:grid-cols-2">
+  <a href="{% url 'manage_game_create' %}"
+     class="rounded-xl border border-court-100 bg-white px-4 py-4 font-semibold shadow-sm">
+    Add game
+  </a>
+  <a href="/admin/"
+     class="rounded-xl border border-court-100 bg-white px-4 py-4 font-semibold shadow-sm">
+    Django admin
+  </a>
+</div>
+
+<section class="mt-8">
+  <h2 class="font-display text-xl">Teams & captains</h2>
+  <ul class="mt-3 space-y-2">
+    {% for team in teams %}
+      <li class="flex items-center justify-between rounded-lg border border-court-100 bg-white px-3 py-3">
+        <div>
+          <a href="{% url 'team_detail' team.pk %}" class="font-medium">{{ team.name }}</a>
+          <p class="text-xs text-court-500">
+            {% for p in team.players.all %}
+              {% if p.is_captain %}Captain: {{ p.display_name }}{% endif %}
+            {% empty %}
+              No roster
+            {% endfor %}
+          </p>
+        </div>
+        <a href="{% url 'team_detail' team.pk %}" class="text-sm text-orange-ball">Edit</a>
+      </li>
+    {% empty %}
+      <li class="text-court-500">No teams yet — create them in admin.</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="mt-8">
+  <div class="mb-3 flex items-end justify-between">
+    <h2 class="font-display text-xl">Upcoming</h2>
+    <a href="{% url 'schedule' %}" class="text-sm text-orange-ball">Schedule</a>
+  </div>
+  <ul class="space-y-2">
+    {% for game in upcoming %}
+      <li class="flex items-center justify-between rounded-lg border border-court-100 bg-white px-3 py-3 text-sm">
+        <span>{{ game.away_team.short_name }} @ {{ game.home_team.short_name }} · {{ game.tipoff|date:"M j, g:i A" }}</span>
+        <a href="{% url 'manage_game_edit' game.pk %}" class="text-orange-ball">Edit</a>
+      </li>
+    {% empty %}
+      <li class="text-court-500">No upcoming games.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

@@ -1,0 +1,30 @@
+<form method="post"
+      action="{% url 'report_score' game.pk %}"
+      hx-post="{% url 'report_score' game.pk %}"
+      hx-target="#score-form"
+      hx-swap="outerHTML"
+      class="space-y-4 rounded-xl border border-court-100 bg-white p-4"
+      id="score-form">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+    <div class="rounded-lg bg-red-100 px-3 py-2 text-sm text-red-800">{{ form.non_field_errors }}</div>
+  {% endif %}
+  <div>
+    <label class="mb-1 block text-sm font-medium" for="{{ form.away_score.id_for_label }}">
+      {{ game.away_team.name }} (away)
+    </label>
+    {{ form.away_score }}
+    {% if form.away_score.errors %}<p class="mt-1 text-sm text-red-600">{{ form.away_score.errors.0 }}</p>{% endif %}
+  </div>
+  <div>
+    <label class="mb-1 block text-sm font-medium" for="{{ form.home_score.id_for_label }}">
+      {{ game.home_team.name }} (home)
+    </label>
+    {{ form.home_score }}
+    {% if form.home_score.errors %}<p class="mt-1 text-sm text-red-600">{{ form.home_score.errors.0 }}</p>{% endif %}
+  </div>
+  <button type="submit"
+          class="w-full rounded-lg bg-orange-ball px-4 py-3 font-semibold text-white">
+    Save final score
+  </button>
+</form>

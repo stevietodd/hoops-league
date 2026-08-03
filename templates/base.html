@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}Hoops League{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            court: {
+              50: '#f4f7f2',
+              100: '#e4ecdf',
+              500: '#3d6b4f',
+              700: '#2a4a37',
+              900: '#1a2f24',
+            },
+            orange: {
+              ball: '#e85d04',
+            }
+          },
+          fontFamily: {
+            display: ['"Archivo Black"', 'system-ui', 'sans-serif'],
+            body: ['"DM Sans"', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <style type="text/tailwindcss">
+    .field-input {
+      @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-base;
+    }
+  </style>
+  <style>
+    body { font-family: 'DM Sans', system-ui, sans-serif; }
+    .font-display { font-family: 'Archivo Black', system-ui, sans-serif; }
+    .pb-safe { padding-bottom: max(5.5rem, env(safe-area-inset-bottom)); }
+  </style>
+</head>
+<body class="min-h-screen bg-court-50 text-court-900 antialiased"
+      hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  <div class="mx-auto flex min-h-screen max-w-3xl flex-col">
+    <header class="sticky top-0 z-20 border-b border-court-100/80 bg-court-50/95 backdrop-blur">
+      <div class="flex items-center justify-between px-4 py-3">
+        <a href="{% url 'home' %}" class="font-display text-xl tracking-tight text-court-900">
+          HOOPS<span class="text-orange-ball">.</span>
+        </a>
+        <div class="flex items-center gap-3 text-sm">
+          {% if active_season %}
+            <span class="hidden text-court-500 sm:inline">{{ active_season.name }}</span>
+          {% endif %}
+          {% if user.is_authenticated %}
+            <form method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button type="submit" class="text-court-500 hover:text-court-900">Log out</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </header>
+
+    {% if messages %}
+      <div class="space-y-2 px-4 pt-3">
+        {% for message in messages %}
+          <div class="rounded-lg px-3 py-2 text-sm {% if message.tags == 'error' %}bg-red-100 text-red-800{% else %}bg-court-100 text-court-700{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <main class="flex-1 px-4 py-4 pb-safe">
+      {% block content %}{% endblock %}
+    </main>
+
+    {% if user.is_authenticated %}
+      <nav class="fixed bottom-0 left-0 right-0 z-20 border-t border-court-100 bg-white/95 backdrop-blur"
+           style="padding-bottom: env(safe-area-inset-bottom);">
+        <div class="mx-auto grid max-w-3xl grid-cols-4 {% if nav_is_commissioner %}sm:grid-cols-5{% endif %} text-center text-xs font-medium text-court-500">
+          <a href="{% url 'home' %}" class="flex flex-col items-center gap-1 py-3 {% if request.resolver_match.url_name == 'home' %}text-orange-ball{% endif %}">
+            <span class="text-lg leading-none">⌂</span>
+            Home
+          </a>
+          <a href="{% url 'schedule' %}" class="flex flex-col items-center gap-1 py-3 {% if request.resolver_match.url_name == 'schedule' or request.resolver_match.url_name == 'game_detail' %}text-orange-ball{% endif %}">
+            <span class="text-lg leading-none">☰</span>
+            Schedule
+          </a>
+          <a href="{% url 'standings' %}" class="flex flex-col items-center gap-1 py-3 {% if request.resolver_match.url_name == 'standings' %}text-orange-ball{% endif %}">
+            <span class="text-lg leading-none">#</span>
+            Standings
+          </a>
+          <a href="{% url 'team_list' %}" class="flex flex-col items-center gap-1 py-3 {% if 'team' in request.resolver_match.url_name %}text-orange-ball{% endif %}">
+            <span class="text-lg leading-none">◎</span>
+            Teams
+          </a>
+          {% if nav_is_commissioner %}
+            <a href="{% url 'manage' %}" class="hidden flex-col items-center gap-1 py-3 sm:flex {% if 'manage' in request.resolver_match.url_name %}text-orange-ball{% endif %}">
+              <span class="text-lg leading-none">⚙</span>
+              Manage
+            </a>
+          {% endif %}
+        </div>
+      </nav>
+    {% endif %}
+  </div>
+</body>
+</html>
