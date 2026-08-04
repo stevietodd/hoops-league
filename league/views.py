@@ -9,21 +9,19 @@ from django.views.decorators.http import require_http_methods, require_POST
 from .forms import AssignCaptainForm, GameForm, RosterPlayerForm, ScoreReportForm
 from .models import Game, Player, Result, Season, Team
 from .permissions import can_manage_roster, can_report_score, is_commissioner
-from .services.standings import compute_standings, recent_results, upcoming_games
+from .services.standings import compute_standings, upcoming_games
 
 
 @login_required
 def home(request):
     season = Season.get_active()
-    standings = compute_standings(season)[:5]
     return render(
         request,
         "league/home.html",
         {
             "season": season,
-            "upcoming": upcoming_games(season),
-            "recent": recent_results(season),
-            "standings": standings,
+            "standings": compute_standings(season),
+            "teams": Team.objects.all(),
         },
     )
 

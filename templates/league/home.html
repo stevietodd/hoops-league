@@ -5,63 +5,36 @@
   <p class="text-sm font-medium uppercase tracking-wide text-court-500">
     {% if season %}{{ season.name }}{% else %}No active season{% endif %}
   </p>
-  <h1 class="mt-1 font-display text-3xl">League hub</h1>
+  <h1 class="mt-1 font-display text-3xl">Standings</h1>
 </section>
 
-<section class="mt-8">
-  <div class="mb-3 flex items-end justify-between">
-    <h2 class="font-display text-xl">Up next</h2>
-    <a href="{% url 'schedule' %}" class="text-sm text-orange-ball">Full schedule</a>
-  </div>
-  {% if upcoming %}
-    <ul class="space-y-3">
-      {% for game in upcoming %}
-        <li>
-          <a href="{% url 'game_detail' game.pk %}"
-             class="block rounded-xl border border-court-100 bg-white px-4 py-3 shadow-sm">
-            <div class="flex items-center justify-between gap-3">
-              <div>
-                <p class="font-semibold">{{ game.away_team.name }} <span class="text-court-500">@</span> {{ game.home_team.name }}</p>
-                <p class="mt-1 text-sm text-court-500">{{ game.tipoff|date:"D, M j · g:i A" }}{% if game.location %} · {{ game.location }}{% endif %}</p>
-              </div>
-              <span class="text-court-300">›</span>
-            </div>
-          </a>
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p class="rounded-xl border border-dashed border-court-200 px-4 py-6 text-center text-court-500">No upcoming games.</p>
-  {% endif %}
-</section>
-
-<section class="mt-8">
-  <div class="mb-3 flex items-end justify-between">
-    <h2 class="font-display text-xl">Standings</h2>
-    <a href="{% url 'standings' %}" class="text-sm text-orange-ball">See all</a>
-  </div>
+<section class="mt-5">
   {% if standings %}
     <div class="overflow-hidden rounded-xl border border-court-100 bg-white">
       <table class="w-full text-left text-sm">
         <thead class="bg-court-100/60 text-xs uppercase tracking-wide text-court-500">
           <tr>
-            <th class="px-3 py-2 font-medium">#</th>
-            <th class="px-3 py-2 font-medium">Team</th>
-            <th class="px-3 py-2 text-right font-medium">W</th>
-            <th class="px-3 py-2 text-right font-medium">L</th>
-            <th class="hidden px-3 py-2 text-right font-medium sm:table-cell">Diff</th>
+            <th class="px-3 py-2.5 font-medium">#</th>
+            <th class="px-3 py-2.5 font-medium">Team</th>
+            <th class="px-3 py-2.5 text-right font-medium">W</th>
+            <th class="px-3 py-2.5 text-right font-medium">L</th>
+            <th class="px-3 py-2.5 text-right font-medium">PCT</th>
+            <th class="px-3 py-2.5 text-right font-medium">Diff</th>
           </tr>
         </thead>
         <tbody>
           {% for row in standings %}
             <tr class="border-t border-court-100">
-              <td class="px-3 py-2.5 text-court-500">{{ forloop.counter }}</td>
-              <td class="px-3 py-2.5 font-medium">
+              <td class="px-3 py-3 text-court-500">{{ forloop.counter }}</td>
+              <td class="px-3 py-3 font-semibold">
                 <a href="{% url 'team_detail' row.team.pk %}">{{ row.team.name }}</a>
               </td>
-              <td class="px-3 py-2.5 text-right">{{ row.wins }}</td>
-              <td class="px-3 py-2.5 text-right">{{ row.losses }}</td>
-              <td class="hidden px-3 py-2.5 text-right sm:table-cell {% if row.point_diff > 0 %}text-court-700{% elif row.point_diff < 0 %}text-red-600{% endif %}">
+              <td class="px-3 py-3 text-right">{{ row.wins }}</td>
+              <td class="px-3 py-3 text-right">{{ row.losses }}</td>
+              <td class="px-3 py-3 text-right tabular-nums">
+                {% if row.games_played %}{{ row.win_pct|floatformat:3 }}{% else %}—{% endif %}
+              </td>
+              <td class="px-3 py-3 text-right tabular-nums {% if row.point_diff > 0 %}text-court-700{% elif row.point_diff < 0 %}text-red-600{% endif %}">
                 {% if row.point_diff > 0 %}+{% endif %}{{ row.point_diff }}
               </td>
             </tr>
@@ -70,29 +43,37 @@
       </table>
     </div>
   {% else %}
-    <p class="text-court-500">No teams yet.</p>
+    <p class="rounded-xl border border-dashed border-court-200 px-4 py-6 text-center text-court-500">
+      No standings yet.
+    </p>
   {% endif %}
 </section>
 
-{% if recent %}
-<section class="mt-8">
-  <h2 class="mb-3 font-display text-xl">Recent results</h2>
-  <ul class="space-y-2">
-    {% for game in recent %}
+<section class="mt-10">
+  <h2 class="font-display text-2xl">Pick your team</h2>
+  <p class="mt-1 text-sm text-court-500">Jump to a roster</p>
+  <ul class="mt-4 space-y-3">
+    {% for team in teams %}
       <li>
-        <a href="{% url 'game_detail' game.pk %}" class="flex items-center justify-between rounded-lg bg-white px-3 py-2.5 border border-court-100">
-          <span class="text-sm">
-            <span class="{% if game.result.away_score > game.result.home_score %}font-semibold{% endif %}">{{ game.away_team.short_name }}</span>
-            {{ game.result.away_score }}–{{ game.result.home_score }}
-            <span class="{% if game.result.home_score > game.result.away_score %}font-semibold{% endif %}">{{ game.home_team.short_name }}</span>
-          </span>
-          <span class="text-xs text-court-400">{{ game.tipoff|date:"M j" }}</span>
+        <a href="{% url 'team_detail' team.pk %}"
+           class="flex items-center justify-between rounded-xl border border-court-100 bg-white px-4 py-4">
+          <div class="flex items-center gap-3">
+            <span class="flex h-10 w-10 items-center justify-center rounded-full bg-court-100 font-display text-sm"
+                  {% if team.color %}style="background: {{ team.color }}22; color: {{ team.color }}"{% endif %}>
+              {{ team.short_name }}
+            </span>
+            <p class="font-semibold">{{ team.name }}</p>
+          </div>
+          <span class="text-court-300">›</span>
         </a>
+      </li>
+    {% empty %}
+      <li class="rounded-xl border border-dashed border-court-200 px-4 py-6 text-center text-court-500">
+        No teams yet.
       </li>
     {% endfor %}
   </ul>
 </section>
-{% endif %}
 
 {% if nav_is_commissioner %}
   <p class="mt-8 sm:hidden">
