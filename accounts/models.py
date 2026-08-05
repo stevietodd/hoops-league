@@ -15,6 +15,7 @@ class UserManager(BaseUserManager):
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("is_admin", True)
         extra_fields.setdefault("is_commissioner", True)
         if extra_fields.get("is_staff") is not True:
             raise ValueError("Superuser must have is_staff=True.")
@@ -27,9 +28,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=100, blank=True)
     last_name = models.CharField(max_length=100, blank=True)
+    is_admin = models.BooleanField(
+        default=False,
+        help_text="Top-level league admin: manage commissioners, Django admin, and all commissioner tools.",
+    )
     is_commissioner = models.BooleanField(
         default=False,
-        help_text="Full league admin: teams, schedule, scores, captains.",
+        help_text="League ops: teams, schedule, scores, captains.",
     )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)

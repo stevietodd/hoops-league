@@ -11,20 +11,50 @@ class Command(BaseCommand):
     help = "Seed a demo season with teams, players, and a few games."
 
     def handle(self, *args, **options):
+        admin_user, admin_created = User.objects.get_or_create(
+            email="admin@hoops.local",
+            defaults={
+                "first_name": "Avery",
+                "last_name": "Admin",
+                "is_admin": True,
+                "is_commissioner": True,
+                "is_staff": True,
+            },
+        )
+        if admin_created or not admin_user.has_usable_password():
+            admin_user.set_password("hoops1234")
+            admin_user.is_admin = True
+            admin_user.is_commissioner = True
+            admin_user.is_staff = True
+            admin_user.save()
+        else:
+            admin_user.is_admin = True
+            admin_user.is_commissioner = True
+            admin_user.is_staff = True
+            admin_user.save(update_fields=["is_admin", "is_commissioner", "is_staff"])
+
         commissioner, created = User.objects.get_or_create(
             email="commissioner@hoops.local",
             defaults={
                 "first_name": "Casey",
                 "last_name": "Commissioner",
                 "is_commissioner": True,
-                "is_staff": True,
+                "is_staff": False,
+                "is_admin": False,
             },
         )
         if created or not commissioner.has_usable_password():
             commissioner.set_password("hoops1234")
             commissioner.is_commissioner = True
-            commissioner.is_staff = True
+            commissioner.is_staff = False
+            commissioner.is_admin = False
             commissioner.save()
+        else:
+            # Keep commissioner below admin: no staff/admin flags from older seeds.
+            commissioner.is_commissioner = True
+            commissioner.is_staff = False
+            commissioner.is_admin = False
+            commissioner.save(update_fields=["is_commissioner", "is_staff", "is_admin"])
 
         season, _ = Season.objects.get_or_create(
             name="Summer 2026",
@@ -133,6 +163,7 @@ class Command(BaseCommand):
                     game.save(update_fields=["status"])
 
         self.stdout.write(self.style.SUCCESS("Demo league ready."))
+        self.stdout.write("  admin@hoops.local / hoops1234         (admin)")
         self.stdout.write("  commissioner@hoops.local / hoops1234  (commissioner)")
         self.stdout.write("  alex@hoops.local / hoops1234          (Court Kings captain)")
         self.stdout.write("  morgan@hoops.local / hoops1234        (Fast Break captain)")

@@ -1,6 +1,6 @@
 # Hoops League
 
-Mobile-first Django app for organizing a basketball league: schedule, team W/L standings, and rosters. Captains report scores; commissioners manage the league.
+Mobile-first Django app for organizing a basketball league: schedule, team W/L standings, and rosters. Captains report scores; commissioners run league ops; admins sit above them.
 
 ## Stack
 
@@ -24,6 +24,7 @@ Open http://127.0.0.1:8000/ and sign in:
 
 | Email | Password | Role |
 |-------|----------|------|
+| `admin@hoops.local` | `hoops1234` | Admin |
 | `commissioner@hoops.local` | `hoops1234` | Commissioner |
 | `alex@hoops.local` | `hoops1234` | Court Kings captain |
 | `morgan@hoops.local` | `hoops1234` | Fast Break captain |
@@ -32,6 +33,7 @@ Open http://127.0.0.1:8000/ and sign in:
 
 - **Players** — view home, schedule, standings, team rosters
 - **Captains** — edit own roster; report/edit scores for own team's games
-- **Commissioner** — manage hub, create/edit games, assign captains, full Django admin
+- **Commissioner** — manage hub, create/edit games, assign captains
+- **Admin** — everything a commissioner can do, plus promote/demote commissioners and Django admin
 
 Scores are **team totals only** (no individual player points).

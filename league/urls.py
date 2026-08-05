@@ -18,6 +18,8 @@ urlpatterns = [
     path("games/<int:pk>/", views.game_detail, name="game_detail"),
     path("games/<int:pk>/report/", views.report_score, name="report_score"),
     path("manage/", views.manage_hub, name="manage"),
+    path("manage/users/", views.manage_users, name="manage_users"),
+    path("manage/users/<int:pk>/toggle-commissioner/", views.toggle_commissioner, name="toggle_commissioner"),
     path("manage/games/new/", views.manage_game_create, name="manage_game_create"),
     path("manage/games/<int:pk>/edit/", views.manage_game_edit, name="manage_game_edit"),
 ]

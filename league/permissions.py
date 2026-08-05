@@ -1,8 +1,15 @@
-"""Role helpers for commissioner / captain / player checks."""
+"""Role helpers for admin / commissioner / captain / player checks."""
+
+
+def is_admin(user):
+    return bool(user.is_authenticated and getattr(user, "is_admin", False))
 
 
 def is_commissioner(user):
-    return bool(user.is_authenticated and getattr(user, "is_commissioner", False))
+    """True for commissioners and admins (admins inherit commissioner powers)."""
+    if not user.is_authenticated:
+        return False
+    return bool(getattr(user, "is_admin", False) or getattr(user, "is_commissioner", False))
 
 
 def get_player_profile(user):

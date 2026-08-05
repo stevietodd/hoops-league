@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Q
@@ -8,8 +9,10 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from .forms import AssignCaptainForm, GameForm, RosterPlayerForm, ScoreReportForm
 from .models import Game, Player, Result, Season, Team
-from .permissions import can_manage_roster, can_report_score, is_commissioner
+from .permissions import can_manage_roster, can_report_score, is_admin, is_commissioner
 from .services.standings import compute_standings, upcoming_games
+
+User = get_user_model()
 
 
 @login_required
@@ -244,7 +247,7 @@ def manage_game_edit(request, pk):
 @login_required
 def manage_hub(request):
     if not is_commissioner(request.user):
-        return HttpResponseForbidden("Only the commissioner can access manage.")
+        return HttpResponseForbidden("Only commissioners and admins can access manage.")
 
     season = Season.get_active()
     return render(
@@ -256,3 +259,33 @@ def manage_hub(request):
             "upcoming": upcoming_games(season, limit=10),
         },
     )
+
+
+@login_required
+def manage_users(request):
+    if not is_admin(request.user):
+        return HttpResponseForbidden("Only admins can manage user roles.")
+
+    users = User.objects.order_by("-is_admin", "-is_commissioner", "email")
+    return render(request, "league/manage_users.html", {"users": users})
+
+
+@login_required
+@require_POST
+def toggle_commissioner(request, pk):
+    if not is_admin(request.user):
+        return HttpResponseForbidden("Only admins can assign commissioners.")
+
+    target = get_object_or_404(User, pk=pk)
+    if target.is_admin:
+        messages.error(request, "Admin roles are managed separately; cannot change commissioner on an admin.")
+        return redirect("manage_users")
+
+    target.is_commissioner = not target.is_commissioner
+    target.save(update_fields=["is_commissioner"])
+    if target.is_commissioner:
+        messages.success(request, f"{target.email} is now a commissioner.")
+    else:
+        messages.success(request, f"{target.email} is no longer a commissioner.")
+    return redirect("manage_users")
+

@@ -2,17 +2,25 @@
 {% block title %}Manage · Hoops League{% endblock %}
 {% block content %}
 <h1 class="font-display text-3xl">Manage</h1>
-<p class="mt-1 text-sm text-court-500">Commissioner tools</p>
+<p class="mt-1 text-sm text-court-500">
+  {% if nav_is_admin %}Admin tools{% else %}Commissioner tools{% endif %}
+</p>
 
 <div class="mt-6 grid gap-3 sm:grid-cols-2">
   <a href="{% url 'manage_game_create' %}"
      class="rounded-xl border border-court-100 bg-white px-4 py-4 font-semibold shadow-sm">
     Add game
   </a>
-  <a href="/admin/"
-     class="rounded-xl border border-court-100 bg-white px-4 py-4 font-semibold shadow-sm">
-    Django admin
-  </a>
+  {% if nav_is_admin %}
+    <a href="{% url 'manage_users' %}"
+       class="rounded-xl border border-court-100 bg-white px-4 py-4 font-semibold shadow-sm">
+      Manage commissioners
+    </a>
+    <a href="/admin/"
+       class="rounded-xl border border-court-100 bg-white px-4 py-4 font-semibold shadow-sm sm:col-span-2">
+      Django admin
+    </a>
+  {% endif %}
 </div>
 
 <section class="mt-8">
@@ -33,7 +41,7 @@
         <a href="{% url 'team_detail' team.pk %}" class="text-sm text-orange-ball">Edit</a>
       </li>
     {% empty %}
-      <li class="text-court-500">No teams yet — create them in admin.</li>
+      <li class="text-court-500">No teams yet — admins can create them in Django admin.</li>
     {% endfor %}
   </ul>
 </section>
