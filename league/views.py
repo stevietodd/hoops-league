@@ -15,7 +15,6 @@ from .services.standings import compute_standings, upcoming_games
 User = get_user_model()
 
 
-@login_required
 def home(request):
     season = Season.get_active()
     return render(
@@ -29,7 +28,6 @@ def home(request):
     )
 
 
-@login_required
 def schedule(request):
     season = Season.get_active()
     team_id = request.GET.get("team")
@@ -54,7 +52,6 @@ def schedule(request):
     )
 
 
-@login_required
 def game_detail(request, pk):
     game = get_object_or_404(
         Game.objects.select_related("home_team", "away_team", "season", "result"),
@@ -70,7 +67,6 @@ def game_detail(request, pk):
     )
 
 
-@login_required
 def standings(request):
     season = Season.get_active()
     return render(
@@ -83,13 +79,11 @@ def standings(request):
     )
 
 
-@login_required
 def team_list(request):
     teams = Team.objects.prefetch_related("players").all()
     return render(request, "league/team_list.html", {"teams": teams})
 
 
-@login_required
 def team_detail(request, pk):
     team = get_object_or_404(Team.objects.prefetch_related("players__user"), pk=pk)
     return render(

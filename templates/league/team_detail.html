@@ -26,7 +26,7 @@
             <span class="ml-1 rounded-full bg-orange-ball/10 px-2 py-0.5 text-xs font-semibold text-orange-ball">Captain</span>
           {% endif %}
         </p>
-        {% if player.user %}
+        {% if user.is_authenticated and nav_is_commissioner and player.user %}
           <p class="text-xs text-court-400">{{ player.user.email }}</p>
         {% endif %}
       </div>

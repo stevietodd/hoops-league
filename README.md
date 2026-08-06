@@ -36,4 +36,6 @@ Open http://127.0.0.1:8000/ and sign in:
 - **Commissioner** — manage hub, create/edit games, assign captains
 - **Admin** — everything a commissioner can do, plus promote/demote commissioners and Django admin
 
+Standings, schedule, teams, and game pages are **public** (no login). Score reporting and manage tools still require an account.
+
 Scores are **team totals only** (no individual player points).

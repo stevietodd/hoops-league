@@ -61,6 +61,8 @@
               {% csrf_token %}
               <button type="submit" class="text-court-500 hover:text-court-900">Log out</button>
             </form>
+          {% else %}
+            <a href="{% url 'login' %}" class="font-medium text-orange-ball hover:text-orange-600">Log in</a>
           {% endif %}
         </div>
       </div>
@@ -80,35 +82,33 @@
       {% block content %}{% endblock %}
     </main>
 
-    {% if user.is_authenticated %}
-      <nav class="fixed bottom-0 left-0 right-0 z-20 border-t border-court-100 bg-white/95 backdrop-blur"
-           style="padding-bottom: env(safe-area-inset-bottom);">
-        <div class="mx-auto grid max-w-3xl grid-cols-4 {% if nav_is_commissioner %}sm:grid-cols-5{% endif %} text-center text-xs font-medium text-court-500">
-          <a href="{% url 'home' %}" class="flex flex-col items-center gap-1 py-3 {% if request.resolver_match.url_name == 'home' %}text-orange-ball{% endif %}">
-            <span class="text-lg leading-none">⌂</span>
-            Home
+    <nav class="fixed bottom-0 left-0 right-0 z-20 border-t border-court-100 bg-white/95 backdrop-blur"
+         style="padding-bottom: env(safe-area-inset-bottom);">
+      <div class="mx-auto grid max-w-3xl grid-cols-4 {% if nav_is_commissioner %}sm:grid-cols-5{% endif %} text-center text-xs font-medium text-court-500">
+        <a href="{% url 'home' %}" class="flex flex-col items-center gap-1 py-3 {% if request.resolver_match.url_name == 'home' %}text-orange-ball{% endif %}">
+          <span class="text-lg leading-none">⌂</span>
+          Home
+        </a>
+        <a href="{% url 'schedule' %}" class="flex flex-col items-center gap-1 py-3 {% if request.resolver_match.url_name == 'schedule' or request.resolver_match.url_name == 'game_detail' %}text-orange-ball{% endif %}">
+          <span class="text-lg leading-none">☰</span>
+          Schedule
+        </a>
+        <a href="{% url 'standings' %}" class="flex flex-col items-center gap-1 py-3 {% if request.resolver_match.url_name == 'standings' %}text-orange-ball{% endif %}">
+          <span class="text-lg leading-none">#</span>
+          Standings
+        </a>
+        <a href="{% url 'team_list' %}" class="flex flex-col items-center gap-1 py-3 {% if request.resolver_match.url_name and 'team' in request.resolver_match.url_name %}text-orange-ball{% endif %}">
+          <span class="text-lg leading-none">◎</span>
+          Teams
+        </a>
+        {% if nav_is_commissioner %}
+          <a href="{% url 'manage' %}" class="hidden flex-col items-center gap-1 py-3 sm:flex {% if 'manage' in request.resolver_match.url_name %}text-orange-ball{% endif %}">
+            <span class="text-lg leading-none">⚙</span>
+            Manage
           </a>
-          <a href="{% url 'schedule' %}" class="flex flex-col items-center gap-1 py-3 {% if request.resolver_match.url_name == 'schedule' or request.resolver_match.url_name == 'game_detail' %}text-orange-ball{% endif %}">
-            <span class="text-lg leading-none">☰</span>
-            Schedule
-          </a>
-          <a href="{% url 'standings' %}" class="flex flex-col items-center gap-1 py-3 {% if request.resolver_match.url_name == 'standings' %}text-orange-ball{% endif %}">
-            <span class="text-lg leading-none">#</span>
-            Standings
-          </a>
-          <a href="{% url 'team_list' %}" class="flex flex-col items-center gap-1 py-3 {% if 'team' in request.resolver_match.url_name %}text-orange-ball{% endif %}">
-            <span class="text-lg leading-none">◎</span>
-            Teams
-          </a>
-          {% if nav_is_commissioner %}
-            <a href="{% url 'manage' %}" class="hidden flex-col items-center gap-1 py-3 sm:flex {% if 'manage' in request.resolver_match.url_name %}text-orange-ball{% endif %}">
-              <span class="text-lg leading-none">⚙</span>
-              Manage
-            </a>
-          {% endif %}
-        </div>
-      </nav>
-    {% endif %}
+        {% endif %}
+      </div>
+    </nav>
   </div>
 </body>
 </html>
