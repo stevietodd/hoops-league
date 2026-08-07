@@ -14,7 +14,7 @@ class Team(models.Model):
     )
 
     class Meta:
-        ordering = ["name"]
+        ordering = ["abbrev", "name"]
 
     def __str__(self):
         return self.name

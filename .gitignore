@@ -8,3 +8,6 @@ db.sqlite3
 .DS_Store
 staticfiles/
 media/
+
+# Local league import (may contain real roster/schedule data)
+league/management/commands/load_summer_2026.py
