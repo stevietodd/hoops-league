@@ -1,41 +1,62 @@
-# Hoops League
+# Hoops League (PHP)
 
-Mobile-first Django app for organizing a basketball league: schedule, team W/L standings, and rosters. Captains report scores; commissioners run league ops; admins sit above them.
+Mobile-first PHP app for organizing a basketball league on **DreamHost shared hosting**: schedule, team W/L standings, and rosters.
+
+The previous Django implementation is preserved in [`backup-django/`](backup-django/).
 
 ## Stack
 
-- Django 4.2 + django-htmx
-- Tailwind CSS (CDN) + HTMX
-- SQLite (local)
+- PHP 8+ (SQLite via PDO)
+- Plain PHP front controller (no framework)
+- Tailwind CSS (CDN)
+- Apache `mod_rewrite` (`.htaccess` in `public/`)
 
-## Quick start
+## Local quick start
 
 ```bash
 cd hoops-league
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py seed_demo
-python manage.py runserver
+php bin/seed.php
+php -S 127.0.0.1:8000 -t public
 ```
 
-Open http://127.0.0.1:8000/ and sign in:
+Open http://127.0.0.1:8000/
 
 | Email | Password | Role |
 |-------|----------|------|
 | `admin@hoops.local` | `hoops1234` | Admin |
 | `commissioner@hoops.local` | `hoops1234` | Commissioner |
 | `alex@hoops.local` | `hoops1234` | Court Kings captain |
-| `morgan@hoops.local` | `hoops1234` | Fast Break captain |
+
+## DreamHost deploy
+
+1. Upload the project to your account (e.g. `~/hoops-league`).
+2. In the DreamHost panel, set the domain’s **web directory** to `hoops-league/public`  
+   **or** copy/symlink `public/` contents into `~/bball.dreamhosters.com/` and keep `app/`, `config/`, `templates/`, `data/`, `sql/` outside the web root (adjust paths if needed).
+3. Ensure `data/` is writable by the web server.
+4. SSH in and run:
+
+```bash
+cd ~/hoops-league
+php bin/seed.php
+```
+
+5. Visit your domain.
+
+For production, create `config/config.local.php`:
+
+```php
+<?php
+return [
+    'debug' => false,
+    'base_url' => '',
+];
+```
 
 ## Features
 
-- **Players** — view home, schedule, standings, team rosters
-- **Captains** — edit own roster; report/edit scores for own team's games
+- **Public** — standings, schedule, teams/rosters, game pages
+- **Captains** — edit own roster; report scores for own games
 - **Commissioner** — manage hub, create/edit games, assign captains
-- **Admin** — everything a commissioner can do, plus promote/demote commissioners and Django admin
-
-Standings, schedule, teams, and game pages are **public** (no login). Score reporting and manage tools still require an account.
+- **Admin** — promote/demote commissioners
 
 Scores are **team totals only** (no individual player points).

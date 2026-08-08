@@ -2,12 +2,17 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+backup-django/.venv/
+backup-django/db.sqlite3
+backup-django/**/__pycache__/
 db.sqlite3
 *.sqlite3
 .env
 .DS_Store
 staticfiles/
 media/
+data/*.sqlite3
+data/*.db
 
 # Local league import (may contain real roster/schedule data)
-league/management/commands/load_summer_2026.py
+**/load_summer_2026.py
