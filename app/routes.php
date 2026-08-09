@@ -26,6 +26,8 @@ function register_routes(Router $router): void
     $router->get('/teams/{id}', [TeamController::class, 'show']);
     $router->post('/teams/{id}/roster/add', [TeamController::class, 'addPlayer']);
     $router->post('/teams/{teamId}/roster/{playerId}/remove', [TeamController::class, 'removePlayer']);
+    $router->post('/teams/{teamId}/roster/{playerId}/update', [TeamController::class, 'updatePlayer']);
+    $router->post('/teams/{id}/update', [TeamController::class, 'update']);
     $router->post('/teams/{id}/captain', [TeamController::class, 'assignCaptain']);
 
     $router->get('/manage', [ManageController::class, 'hub']);

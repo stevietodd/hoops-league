@@ -20,7 +20,7 @@
     <select class="field-input" name="home_team_id" id="home_team_id" required>
       <?php foreach ($teams as $team): ?>
         <option value="<?= (int) $team['id'] ?>" <?= ($game['home_team_id'] ?? null) == $team['id'] ? 'selected' : '' ?>>
-          <?= e($team['name']) ?>
+          <?= e(team_label($team)) ?>
         </option>
       <?php endforeach; ?>
     </select>
@@ -30,7 +30,7 @@
     <select class="field-input" name="away_team_id" id="away_team_id" required>
       <?php foreach ($teams as $team): ?>
         <option value="<?= (int) $team['id'] ?>" <?= ($game['away_team_id'] ?? null) == $team['id'] ? 'selected' : '' ?>>
-          <?= e($team['name']) ?>
+          <?= e(team_label($team)) ?>
         </option>
       <?php endforeach; ?>
     </select>

@@ -7,7 +7,7 @@ final class Standings
     public static function compute(?int $seasonId = null): array
     {
         $pdo = Database::pdo();
-        $teams = $pdo->query('SELECT * FROM teams ORDER BY CAST(abbrev AS INTEGER), name')->fetchAll();
+        $teams = $pdo->query(teams_with_captain_query())->fetchAll();
         $rows = [];
         foreach ($teams as $team) {
             $rows[(int) $team['id']] = [
@@ -63,8 +63,10 @@ final class Standings
             $bPct = $bPlayed ? $b['wins'] / $bPlayed : 0.0;
             $aDiff = $a['points_for'] - $a['points_against'];
             $bDiff = $b['points_for'] - $b['points_against'];
-            return [$bPct, $bDiff, $b['points_for'], $a['team']['name']]
-                <=> [$aPct, $aDiff, $a['points_for'], $b['team']['name']];
+            $aName = team_label($a['team']);
+            $bName = team_label($b['team']);
+            return [$bPct, $bDiff, $b['points_for'], $aName]
+                <=> [$aPct, $aDiff, $a['points_for'], $bName];
         });
         return $list;
     }

@@ -15,14 +15,27 @@ final class Auth
             $user = $stmt->fetch();
             if ($user) {
                 self::$user = $user;
-                $p = Database::pdo()->prepare('SELECT * FROM players WHERE user_id = ?');
-                $p->execute([(int) $user['id']]);
-                $player = $p->fetch();
-                self::$player = $player ?: null;
+                self::$player = self::loadPlayerForUser((int) $user['id']);
             } else {
                 unset($_SESSION['user_id']);
             }
         }
+    }
+
+    private static function loadPlayerForUser(int $userId): ?array
+    {
+        $stmt = Database::pdo()->prepare(
+            'SELECT p.*, tr.team_id,
+                    (t.captain_id = p.id) AS is_captain
+             FROM players p
+             LEFT JOIN team_roster tr ON tr.player_id = p.id
+             LEFT JOIN teams t ON t.id = tr.team_id
+             WHERE p.user_id = ?
+             LIMIT 1'
+        );
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch();
+        return $row ?: null;
     }
 
     public static function user(): ?array
@@ -57,7 +70,9 @@ final class Auth
 
     public static function isCaptainOf(int $teamId): bool
     {
-        return self::isCaptain() && (int) self::$player['team_id'] === $teamId;
+        return self::isCaptain()
+            && isset(self::$player['team_id'])
+            && (int) self::$player['team_id'] === $teamId;
     }
 
     public static function canReportScore(array $game): bool
@@ -68,7 +83,7 @@ final class Auth
         if (self::isCommissioner()) {
             return true;
         }
-        if (!self::isCaptain()) {
+        if (!self::isCaptain() || empty(self::$player['team_id'])) {
             return false;
         }
         $teamId = (int) self::$player['team_id'];
@@ -90,9 +105,7 @@ final class Auth
         }
         $_SESSION['user_id'] = (int) $user['id'];
         self::$user = $user;
-        $p = Database::pdo()->prepare('SELECT * FROM players WHERE user_id = ?');
-        $p->execute([(int) $user['id']]);
-        self::$player = $p->fetch() ?: null;
+        self::$player = self::loadPlayerForUser((int) $user['id']);
         return true;
     }
 

@@ -14,9 +14,9 @@
     <?php foreach ($teams as $team): ?>
       <li class="flex items-center justify-between rounded-lg border border-court-100 bg-white px-3 py-3">
         <div>
-          <a href="<?= e(url('/teams/' . $team['id'])) ?>" class="font-medium"><?= e($team['name']) ?></a>
+          <a href="<?= e(url('/teams/' . $team['id'])) ?>" class="font-medium"><?= e(team_label($team)) ?></a>
           <p class="text-xs text-court-500">
-            <?= $team['captain_name'] ? 'Captain: ' . e($team['captain_name']) : 'No captain' ?>
+            Captain: <?= e($team['captain_display_name'] ?? '—') ?>
           </p>
         </div>
         <a href="<?= e(url('/teams/' . $team['id'])) ?>" class="text-sm text-orange-ball">Edit</a>

@@ -29,7 +29,7 @@
             <tr class="border-t border-court-100">
               <td class="px-3 py-3 text-court-500"><?= $i + 1 ?></td>
               <td class="px-3 py-3 font-semibold">
-                <a href="<?= e(url('/teams/' . $row['team']['id'])) ?>"><?= e($row['team']['name']) ?></a>
+                <a href="<?= e(url('/teams/' . $row['team']['id'])) ?>"><?= e(team_label($row['team'])) ?></a>
               </td>
               <td class="px-3 py-3 text-right"><?= (int) $row['wins'] ?></td>
               <td class="px-3 py-3 text-right"><?= (int) $row['losses'] ?></td>
@@ -60,7 +60,7 @@
                   <?php if ($team['color']): ?>style="background: <?= e($team['color']) ?>22; color: <?= e($team['color']) ?>"<?php endif; ?>>
               <?= e(team_short($team)) ?>
             </span>
-            <p class="font-semibold"><?= e($team['name']) ?></p>
+            <p class="font-semibold"><?= e(team_label($team)) ?></p>
           </div>
           <span class="text-court-300">›</span>
         </a>

@@ -14,11 +14,27 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS players (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    first_name TEXT NOT NULL DEFAULT '',
+    last_initial TEXT NOT NULL DEFAULT '',
+    display_name TEXT NOT NULL,
+    current_ranking TEXT NOT NULL DEFAULT '',
+    user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS teams (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
-    abbrev TEXT NOT NULL DEFAULT '',
-    color TEXT NOT NULL DEFAULT ''
+    captain_id INTEGER NOT NULL REFERENCES players(id),
+    display_name TEXT NOT NULL,
+    color TEXT NOT NULL DEFAULT '',
+    team_number TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS team_roster (
+    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    PRIMARY KEY (team_id, player_id)
 );
 
 CREATE TABLE IF NOT EXISTS seasons (
@@ -27,14 +43,6 @@ CREATE TABLE IF NOT EXISTS seasons (
     start_date TEXT,
     end_date TEXT,
     is_active INTEGER NOT NULL DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS players (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE SET NULL,
-    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-    display_name TEXT NOT NULL,
-    is_captain INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS games (
@@ -59,4 +67,5 @@ CREATE TABLE IF NOT EXISTS results (
 );
 
 CREATE INDEX IF NOT EXISTS idx_games_season_tipoff ON games(season_id, tipoff);
-CREATE INDEX IF NOT EXISTS idx_players_team ON players(team_id);
+CREATE INDEX IF NOT EXISTS idx_team_roster_player ON team_roster(player_id);
+CREATE INDEX IF NOT EXISTS idx_players_ranking ON players(current_ranking);

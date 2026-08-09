@@ -25,6 +25,7 @@ session_start();
 
 require_once ROOT_PATH . '/app/helpers.php';
 require_once ROOT_PATH . '/app/Database.php';
+require_once ROOT_PATH . '/app/Team.php';
 require_once ROOT_PATH . '/app/Auth.php';
 require_once ROOT_PATH . '/app/Standings.php';
 require_once ROOT_PATH . '/app/Router.php';

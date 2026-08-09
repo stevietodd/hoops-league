@@ -14,7 +14,7 @@
     <option value="">All teams</option>
     <?php foreach ($teams as $team): ?>
       <option value="<?= (int) $team['id'] ?>" <?= $selectedTeam === (int) $team['id'] ? 'selected' : '' ?>>
-        <?= e($team['name']) ?>
+        <?= e(team_label($team)) ?>
       </option>
     <?php endforeach; ?>
   </select>

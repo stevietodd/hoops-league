@@ -6,29 +6,29 @@ final class TeamController
 {
     public static function index(): void
     {
-        $teams = Database::pdo()->query(
-            'SELECT t.*,
-                    (SELECT COUNT(*) FROM players p WHERE p.team_id = t.id) AS player_count
-             FROM teams t
-             ORDER BY CAST(t.abbrev AS INTEGER), t.name'
-        )->fetchAll();
+        $teams = Database::pdo()->query(teams_with_captain_query())->fetchAll();
         render('teams', ['title' => 'Teams', 'teams' => $teams]);
     }
 
     public static function show(string $id): void
     {
-        $team = self::findTeam((int) $id);
+        $team = find_team((int) $id);
         if (!$team) {
             http_response_code(404);
             render('errors/404', ['title' => 'Not found']);
             return;
         }
         $players = Database::pdo()->prepare(
-            'SELECT * FROM players WHERE team_id = ? ORDER BY is_captain DESC, display_name'
+            'SELECT p.*, (t.captain_id = p.id) AS is_captain
+             FROM team_roster tr
+             JOIN players p ON p.id = tr.player_id
+             JOIN teams t ON t.id = tr.team_id
+             WHERE tr.team_id = ?
+             ORDER BY is_captain DESC, p.display_name'
         );
         $players->execute([(int) $id]);
         render('team_detail', [
-            'title' => $team['name'],
+            'title' => team_label($team),
             'team' => $team,
             'players' => $players->fetchAll(),
             'canManage' => Auth::canManageRoster((int) $id),
@@ -46,16 +46,26 @@ final class TeamController
             echo 'Forbidden';
             return;
         }
-        $name = trim((string) ($_POST['display_name'] ?? ''));
-        if ($name === '') {
-            flash('error', 'Player name is required.');
+        $first = trim((string) ($_POST['first_name'] ?? ''));
+        $initial = strtoupper(substr(trim((string) ($_POST['last_initial'] ?? '')), 0, 1));
+        $display = trim((string) ($_POST['display_name'] ?? ''));
+        $ranking = trim((string) ($_POST['current_ranking'] ?? ''));
+        if ($display === '') {
+            $display = default_player_display($first, $initial);
+        }
+        if ($display === '' || $display === 'Player') {
+            flash('error', 'Player display name is required.');
             redirect('/teams/' . $teamId);
         }
-        $stmt = Database::pdo()->prepare(
-            'INSERT INTO players (team_id, display_name, is_captain) VALUES (?, ?, 0)'
-        );
-        $stmt->execute([$teamId, $name]);
-        flash('success', 'Added ' . $name . ' to the roster.');
+
+        $pdo = Database::pdo();
+        $pdo->prepare(
+            'INSERT INTO players (first_name, last_initial, display_name, current_ranking)
+             VALUES (?, ?, ?, ?)'
+        )->execute([$first, $initial, $display, $ranking]);
+        $playerId = (int) $pdo->lastInsertId();
+        $pdo->prepare('INSERT INTO team_roster (team_id, player_id) VALUES (?, ?)')->execute([$teamId, $playerId]);
+        flash('success', 'Added ' . $display . ' to the roster.');
         redirect('/teams/' . $teamId);
     }
 
@@ -64,16 +74,27 @@ final class TeamController
         Auth::requireLogin();
         verify_csrf();
         $tid = (int) $teamId;
+        $pid = (int) $playerId;
         if (!Auth::canManageRoster($tid)) {
             http_response_code(403);
             echo 'Forbidden';
             return;
         }
-        $stmt = Database::pdo()->prepare('SELECT * FROM players WHERE id = ? AND team_id = ?');
-        $stmt->execute([(int) $playerId, $tid]);
+        $team = find_team($tid);
+        if ($team && (int) $team['captain_id'] === $pid) {
+            flash('error', 'Assign a new captain before removing the current captain.');
+            redirect('/teams/' . $tid);
+        }
+        $stmt = Database::pdo()->prepare(
+            'SELECT p.* FROM players p
+             JOIN team_roster tr ON tr.player_id = p.id
+             WHERE p.id = ? AND tr.team_id = ?'
+        );
+        $stmt->execute([$pid, $tid]);
         $player = $stmt->fetch();
         if ($player) {
-            Database::pdo()->prepare('DELETE FROM players WHERE id = ?')->execute([(int) $playerId]);
+            Database::pdo()->prepare('DELETE FROM team_roster WHERE team_id = ? AND player_id = ?')->execute([$tid, $pid]);
+            Database::pdo()->prepare('DELETE FROM players WHERE id = ?')->execute([$pid]);
             flash('success', 'Removed ' . $player['display_name'] . ' from the roster.');
         }
         redirect('/teams/' . $tid);
@@ -85,25 +106,67 @@ final class TeamController
         verify_csrf();
         $teamId = (int) $id;
         $playerId = (int) ($_POST['player_id'] ?? 0);
-        $stmt = Database::pdo()->prepare('SELECT * FROM players WHERE id = ? AND team_id = ?');
+        $stmt = Database::pdo()->prepare(
+            'SELECT p.* FROM players p
+             JOIN team_roster tr ON tr.player_id = p.id
+             WHERE p.id = ? AND tr.team_id = ?'
+        );
         $stmt->execute([$playerId, $teamId]);
         $player = $stmt->fetch();
         if (!$player) {
             flash('error', 'Could not assign captain.');
             redirect('/teams/' . $teamId);
         }
-        $pdo = Database::pdo();
-        $pdo->prepare('UPDATE players SET is_captain = 0 WHERE team_id = ?')->execute([$teamId]);
-        $pdo->prepare('UPDATE players SET is_captain = 1 WHERE id = ?')->execute([$playerId]);
+        Database::pdo()->prepare('UPDATE teams SET captain_id = ? WHERE id = ?')->execute([$playerId, $teamId]);
         flash('success', $player['display_name'] . ' is now captain.');
         redirect('/teams/' . $teamId);
     }
 
-    public static function findTeam(int $id): ?array
+    public static function update(string $id): void
     {
-        $stmt = Database::pdo()->prepare('SELECT * FROM teams WHERE id = ?');
-        $stmt->execute([$id]);
-        $row = $stmt->fetch();
-        return $row ?: null;
+        Auth::requireLogin();
+        verify_csrf();
+        $teamId = (int) $id;
+        if (!Auth::canManageRoster($teamId)) {
+            http_response_code(403);
+            echo 'Forbidden';
+            return;
+        }
+        $display = trim((string) ($_POST['display_name'] ?? ''));
+        if ($display === '') {
+            flash('error', 'Team display name is required.');
+            redirect('/teams/' . $teamId);
+        }
+        Database::pdo()->prepare('UPDATE teams SET display_name = ? WHERE id = ?')->execute([$display, $teamId]);
+        flash('success', 'Updated team name to ' . $display . '.');
+        redirect('/teams/' . $teamId);
+    }
+
+    public static function updatePlayer(string $teamId, string $playerId): void
+    {
+        Auth::requireLogin();
+        verify_csrf();
+        $tid = (int) $teamId;
+        $pid = (int) $playerId;
+        if (!Auth::canManageRoster($tid)) {
+            http_response_code(403);
+            echo 'Forbidden';
+            return;
+        }
+        $display = trim((string) ($_POST['display_name'] ?? ''));
+        $first = trim((string) ($_POST['first_name'] ?? ''));
+        $initial = strtoupper(substr(trim((string) ($_POST['last_initial'] ?? '')), 0, 1));
+        $ranking = trim((string) ($_POST['current_ranking'] ?? ''));
+        if ($display === '') {
+            flash('error', 'Display name is required.');
+            redirect('/teams/' . $tid);
+        }
+        $stmt = Database::pdo()->prepare(
+            'UPDATE players SET first_name = ?, last_initial = ?, display_name = ?, current_ranking = ?
+             WHERE id = ? AND id IN (SELECT player_id FROM team_roster WHERE team_id = ?)'
+        );
+        $stmt->execute([$first, $initial, $display, $ranking, $pid, $tid]);
+        flash('success', 'Updated ' . $display . '.');
+        redirect('/teams/' . $tid);
     }
 }

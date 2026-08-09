@@ -8,7 +8,7 @@ final class HomeController
     {
         $season = Database::activeSeason();
         $standings = Standings::compute($season ? (int) $season['id'] : null);
-        $teams = Database::pdo()->query('SELECT * FROM teams ORDER BY CAST(abbrev AS INTEGER), name')->fetchAll();
+        $teams = Database::pdo()->query(teams_with_captain_query())->fetchAll();
         render('home', [
             'title' => 'Home',
             'season' => $season,

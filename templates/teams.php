@@ -12,7 +12,7 @@
             <?= e(team_short($team)) ?>
           </span>
           <div>
-            <p class="font-semibold"><?= e($team['name']) ?></p>
+            <p class="font-semibold"><?= e(team_label($team)) ?></p>
             <p class="text-sm text-court-500"><?= (int) $team['player_count'] ?> player<?= (int)$team['player_count'] === 1 ? '' : 's' ?></p>
           </div>
         </div>

@@ -12,8 +12,9 @@ $pdo = Database::pdo();
 
 $pdo->exec('DELETE FROM results');
 $pdo->exec('DELETE FROM games');
-$pdo->exec('DELETE FROM players');
+$pdo->exec('DELETE FROM team_roster');
 $pdo->exec('DELETE FROM teams');
+$pdo->exec('DELETE FROM players');
 $pdo->exec('DELETE FROM seasons');
 $pdo->exec('DELETE FROM users');
 
@@ -27,49 +28,70 @@ $insUser->execute(['admin@hoops.local', $password, 'Avery', 'Admin', 1, 1]);
 $adminId = (int) $pdo->lastInsertId();
 $insUser->execute(['commissioner@hoops.local', $password, 'Casey', 'Commissioner', 0, 1]);
 
-
 $pdo->prepare(
     'INSERT INTO seasons (name, start_date, end_date, is_active) VALUES (?, ?, ?, 1)'
 )->execute(['Summer 2026', '2026-07-01', '2026-09-30']);
 $seasonId = (int) $pdo->lastInsertId();
 
 $roster = [
-    ['Court Kings', 'KNG', '#1d4ed8', 'Alex King', 'alex@hoops.local', ['Jordan Lee', 'Sam Rivera', 'Chris Patton']],
-    ['Fast Break', 'FBK', '#b45309', 'Morgan Swift', 'morgan@hoops.local', ['Riley Chen', 'Taylor Brooks', 'Jamie Ortiz']],
-    ['Rim Runners', 'RIM', '#166534', 'Drew Hayes', 'drew@hoops.local', ['Casey Nguyen', 'Avery Scott', 'Quinn Diaz']],
-    ['Alley-Oops', 'AOP', '#7c3aed', 'Parker Lane', 'parker@hoops.local', ['Reese Kim', 'Blake Torres', 'Cameron Wells']],
+    ['1', '#1d4ed8', 'Alex', 'K', 'Alex K.', 'alex@hoops.local', [
+        ['Jordan', 'L', 'Jordan L.'],
+        ['Sam', 'R', 'Sam R.'],
+        ['Chris', 'P', 'Chris P.'],
+    ]],
+    ['2', '#b45309', 'Morgan', 'S', 'Morgan S.', 'morgan@hoops.local', [
+        ['Riley', 'C', 'Riley C.'],
+        ['Taylor', 'B', 'Taylor B.'],
+        ['Jamie', 'O', 'Jamie O.'],
+    ]],
+    ['3', '#166534', 'Drew', 'H', 'Drew H.', 'drew@hoops.local', [
+        ['Casey', 'N', 'Casey N.'],
+        ['Avery', 'S', 'Avery S.'],
+        ['Quinn', 'D', 'Quinn D.'],
+    ]],
+    ['4', '#7c3aed', 'Parker', 'L', 'Parker L.', 'parker@hoops.local', [
+        ['Reese', 'K', 'Reese K.'],
+        ['Blake', 'T', 'Blake T.'],
+        ['Cameron', 'W', 'Cameron W.'],
+    ]],
 ];
 
 $teamIds = [];
-$insTeam = $pdo->prepare('INSERT INTO teams (name, abbrev, color) VALUES (?, ?, ?)');
 $insPlayer = $pdo->prepare(
-    'INSERT INTO players (user_id, team_id, display_name, is_captain) VALUES (?, ?, ?, ?)'
+    'INSERT INTO players (first_name, last_initial, display_name, current_ranking, user_id)
+     VALUES (?, ?, ?, ?, ?)'
 );
+$insTeam = $pdo->prepare('INSERT INTO teams (captain_id, display_name, color, team_number) VALUES (?, ?, ?, ?)');
+$insRoster = $pdo->prepare('INSERT INTO team_roster (team_id, player_id) VALUES (?, ?)');
 
-foreach ($roster as [$name, $abbrev, $color, $captainName, $email, $players]) {
-    $insTeam->execute([$name, $abbrev, $color]);
-    $teamId = (int) $pdo->lastInsertId();
-    $teamIds[$name] = $teamId;
-
-    $parts = explode(' ', $captainName, 2);
-    $insUser->execute([$email, $password, $parts[0], $parts[1] ?? '', 0, 0]);
+foreach ($roster as [$ranking, $color, $capFirst, $capInitial, $capDisplay, $email, $players]) {
+    $insUser->execute([$email, $password, $capFirst, $capInitial, 0, 0]);
     $userId = (int) $pdo->lastInsertId();
-    $insPlayer->execute([$userId, $teamId, $captainName, 1]);
 
-    foreach ($players as $playerName) {
-        $insPlayer->execute([null, $teamId, $playerName, 0]);
+    $insPlayer->execute([$capFirst, $capInitial, $capDisplay, $ranking, $userId]);
+    $captainId = (int) $pdo->lastInsertId();
+
+    $insTeam->execute([$captainId, 'Team ' . $capDisplay, $color, $ranking]);
+    $teamId = (int) $pdo->lastInsertId();
+    $teamIds[$ranking] = $teamId;
+    $insRoster->execute([$teamId, $captainId]);
+
+    foreach ($players as [$first, $initial, $display]) {
+        $insPlayer->execute([$first, $initial, $display, $ranking, null]);
+        $playerId = (int) $pdo->lastInsertId();
+        $insRoster->execute([$teamId, $playerId]);
     }
 }
 
 $tz = new DateTimeZone('America/New_York');
 $base = new DateTimeImmutable('now', $tz);
 $schedule = [
-    ['Fast Break', 'Court Kings', $base->modify('-7 days')->setTime(19, 0), 'North Gym', [62, 58], true],
-    ['Rim Runners', 'Alley-Oops', $base->modify('-7 days')->setTime(20, 0), 'North Gym', [71, 70], true],
-    ['Court Kings', 'Rim Runners', $base->modify('-3 days')->setTime(19, 0), 'South Court', [55, 60], true],
-    ['Alley-Oops', 'Fast Break', $base->modify('+2 days')->setTime(19, 0), 'North Gym', null, false],
-    ['Court Kings', 'Alley-Oops', $base->modify('+5 days')->setTime(20, 0), 'South Court', null, false],
-    ['Fast Break', 'Rim Runners', $base->modify('+9 days')->setTime(19, 0), 'North Gym', null, false],
+    ['2', '1', $base->modify('-7 days')->setTime(19, 0), 'North Gym', [62, 58], true],
+    ['3', '4', $base->modify('-7 days')->setTime(20, 0), 'North Gym', [71, 70], true],
+    ['1', '3', $base->modify('-3 days')->setTime(19, 0), 'South Court', [55, 60], true],
+    ['4', '2', $base->modify('+2 days')->setTime(19, 0), 'North Gym', null, false],
+    ['1', '4', $base->modify('+5 days')->setTime(20, 0), 'South Court', null, false],
+    ['2', '3', $base->modify('+9 days')->setTime(19, 0), 'North Gym', null, false],
 ];
 
 $insGame = $pdo->prepare(
@@ -91,7 +113,6 @@ foreach ($schedule as [$away, $home, $tipoff, $location, $scores, $final]) {
     ]);
     $gameId = (int) $pdo->lastInsertId();
     if ($final && $scores) {
-        // scores array is [away, home] matching prior Django seed
         $insResult->execute([$gameId, $scores[1], $scores[0], $adminId]);
     }
 }
@@ -99,5 +120,5 @@ foreach ($schedule as [$away, $home, $tipoff, $location, $scores, $final]) {
 echo "Demo league ready.\n";
 echo "  admin@hoops.local / hoops1234\n";
 echo "  commissioner@hoops.local / hoops1234\n";
-echo "  alex@hoops.local / hoops1234 (Court Kings captain)\n";
-echo "  morgan@hoops.local / hoops1234 (Fast Break captain)\n";
+echo "  alex@hoops.local / hoops1234 (Team Alex K.)\n";
+echo "  morgan@hoops.local / hoops1234 (Team Morgan S.)\n";

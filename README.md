@@ -52,6 +52,27 @@ return [
 ];
 ```
 
+## Import a season (CSV)
+
+CSV templates live in `imports/_template/`. Summer 2026 data (from the old sheet) is in `imports/summer-2026/`.
+
+**teams.csv** columns: `team_name,first_name,last_name,ranking,isCaptain` (optional: `display_name`, `last_initial`, `player_ranking`)  
+**schedule.csv** columns: `date,time,team1,team2`  
+- `team1` = home, `team2` = away  
+- `team1`/`team2` can be a ranking number (`1`), `team_name`, or captain `display_name`  
+- `ranking` is the team number (schedule + badge); `player_ranking` is the per-player rating in `current_ranking`  
+- Public names always use `players.display_name` for people and `teams.display_name` for teams  
+- Import defaults team label to `Team {team_name}` (override with `team_display_name`); players default to `First L.` when a first name is present
+
+```bash
+php bin/import_season.php \
+  --season="Summer 2026" \
+  --teams=imports/summer-2026/teams.csv \
+  --schedule=imports/summer-2026/schedule.csv
+```
+
+This replaces teams/players/games/results/seasons (staff logins are kept).
+
 ## Features
 
 - **Public** — standings, schedule, teams/rosters, game pages

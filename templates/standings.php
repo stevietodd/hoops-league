@@ -31,7 +31,7 @@
           <tr class="border-t border-court-100">
             <td class="px-3 py-3 text-court-500"><?= $i + 1 ?></td>
             <td class="px-3 py-3 font-semibold">
-              <a href="<?= e(url('/teams/' . $row['team']['id'])) ?>"><?= e($row['team']['name']) ?></a>
+              <a href="<?= e(url('/teams/' . $row['team']['id'])) ?>"><?= e(team_label($row['team'])) ?></a>
             </td>
             <td class="px-3 py-3 text-right"><?= (int) $row['wins'] ?></td>
             <td class="px-3 py-3 text-right"><?= (int) $row['losses'] ?></td>

@@ -8,29 +8,48 @@ final class ManageController
     {
         Auth::requireCommissioner();
         $season = Database::activeSeason();
-        $teams = Database::pdo()->query('SELECT * FROM teams ORDER BY CAST(abbrev AS INTEGER), name')->fetchAll();
-        foreach ($teams as &$team) {
-            $p = Database::pdo()->prepare(
-                'SELECT display_name FROM players WHERE team_id = ? AND is_captain = 1 LIMIT 1'
-            );
-            $p->execute([(int) $team['id']]);
-            $cap = $p->fetch();
-            $team['captain_name'] = $cap['display_name'] ?? null;
-        }
-        unset($team);
+        $teams = Database::pdo()->query(teams_with_captain_query())->fetchAll();
 
         $upcoming = [];
         if ($season) {
             $stmt = Database::pdo()->prepare(
-                'SELECT g.*, ht.abbrev AS home_abbrev, at.abbrev AS away_abbrev
+                'SELECT g.*,
+                        ht.display_name AS home_display_name,
+                        ht.team_number AS home_team_number,
+                        at.display_name AS away_display_name,
+                        at.team_number AS away_team_number,
+                        hp.display_name AS home_captain_display_name,
+                        hp.current_ranking AS home_captain_ranking,
+                        ap.display_name AS away_captain_display_name,
+                        ap.current_ranking AS away_captain_ranking
                  FROM games g
                  JOIN teams ht ON ht.id = g.home_team_id
+                 JOIN players hp ON hp.id = ht.captain_id
                  JOIN teams at ON at.id = g.away_team_id
+                 JOIN players ap ON ap.id = at.captain_id
                  WHERE g.season_id = ? AND g.status = \'scheduled\' AND g.tipoff >= datetime(\'now\')
                  ORDER BY g.tipoff LIMIT 10'
             );
             $stmt->execute([(int) $season['id']]);
-            $upcoming = $stmt->fetchAll();
+            $upcoming = array_map(static function (array $row): array {
+                $home = [
+                    'display_name' => $row['home_display_name'],
+                    'team_number' => $row['home_team_number'],
+                    'captain_display_name' => $row['home_captain_display_name'],
+                    'captain_ranking' => $row['home_captain_ranking'],
+                ];
+                $away = [
+                    'display_name' => $row['away_display_name'],
+                    'team_number' => $row['away_team_number'],
+                    'captain_display_name' => $row['away_captain_display_name'],
+                    'captain_ranking' => $row['away_captain_ranking'],
+                ];
+                $row['home_abbrev'] = team_short($home);
+                $row['away_abbrev'] = team_short($away);
+                $row['home_name'] = team_label($home);
+                $row['away_name'] = team_label($away);
+                return $row;
+            }, $stmt->fetchAll());
         }
 
         render('manage', [
@@ -48,7 +67,7 @@ final class ManageController
             'title' => 'Add game',
             'game' => null,
             'seasons' => Database::pdo()->query('SELECT * FROM seasons ORDER BY is_active DESC, name')->fetchAll(),
-            'teams' => Database::pdo()->query('SELECT * FROM teams ORDER BY CAST(abbrev AS INTEGER), name')->fetchAll(),
+            'teams' => Database::pdo()->query(teams_with_captain_query())->fetchAll(),
             'action' => url('/manage/games/new'),
         ]);
     }
@@ -90,7 +109,7 @@ final class ManageController
             'title' => 'Edit game',
             'game' => $game,
             'seasons' => Database::pdo()->query('SELECT * FROM seasons ORDER BY is_active DESC, name')->fetchAll(),
-            'teams' => Database::pdo()->query('SELECT * FROM teams ORDER BY CAST(abbrev AS INTEGER), name')->fetchAll(),
+            'teams' => Database::pdo()->query(teams_with_captain_query())->fetchAll(),
             'action' => url('/manage/games/' . $id . '/edit'),
         ]);
     }

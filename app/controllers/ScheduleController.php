@@ -4,20 +4,34 @@ declare(strict_types=1);
 
 final class ScheduleController
 {
+    private const GAME_SELECT = 'SELECT g.*,
+                ht.id AS home_team_id,
+                ht.display_name AS home_display_name,
+                ht.team_number AS home_team_number,
+                at.id AS away_team_id,
+                at.display_name AS away_display_name,
+                at.team_number AS away_team_number,
+                hp.display_name AS home_captain_display_name,
+                hp.current_ranking AS home_captain_ranking,
+                ap.display_name AS away_captain_display_name,
+                ap.current_ranking AS away_captain_ranking,
+                r.home_score, r.away_score,
+                s.name AS season_name
+         FROM games g
+         JOIN teams ht ON ht.id = g.home_team_id
+         JOIN players hp ON hp.id = ht.captain_id
+         JOIN teams at ON at.id = g.away_team_id
+         JOIN players ap ON ap.id = at.captain_id
+         JOIN seasons s ON s.id = g.season_id
+         LEFT JOIN results r ON r.game_id = g.id';
+
     public static function index(): void
     {
         $season = Database::activeSeason();
         $teamId = isset($_GET['team']) && $_GET['team'] !== '' ? (int) $_GET['team'] : null;
         $games = [];
         if ($season) {
-            $sql = 'SELECT g.*, ht.name AS home_name, ht.abbrev AS home_abbrev,
-                           at.name AS away_name, at.abbrev AS away_abbrev,
-                           r.home_score, r.away_score
-                    FROM games g
-                    JOIN teams ht ON ht.id = g.home_team_id
-                    JOIN teams at ON at.id = g.away_team_id
-                    LEFT JOIN results r ON r.game_id = g.id
-                    WHERE g.season_id = ?';
+            $sql = self::GAME_SELECT . ' WHERE g.season_id = ?';
             $params = [(int) $season['id']];
             if ($teamId) {
                 $sql .= ' AND (g.home_team_id = ? OR g.away_team_id = ?)';
@@ -27,9 +41,9 @@ final class ScheduleController
             $sql .= ' ORDER BY g.tipoff';
             $stmt = Database::pdo()->prepare($sql);
             $stmt->execute($params);
-            $games = $stmt->fetchAll();
+            $games = array_map([self::class, 'hydrateGame'], $stmt->fetchAll());
         }
-        $teams = Database::pdo()->query('SELECT * FROM teams ORDER BY CAST(abbrev AS INTEGER), name')->fetchAll();
+        $teams = Database::pdo()->query(teams_with_captain_query())->fetchAll();
         render('schedule', [
             'title' => 'Schedule',
             'season' => $season,
@@ -121,19 +135,30 @@ final class ScheduleController
 
     public static function findGame(int $id): ?array
     {
-        $stmt = Database::pdo()->prepare(
-            'SELECT g.*, ht.name AS home_name, ht.abbrev AS home_abbrev,
-                    at.name AS away_name, at.abbrev AS away_abbrev,
-                    r.home_score, r.away_score, s.name AS season_name
-             FROM games g
-             JOIN teams ht ON ht.id = g.home_team_id
-             JOIN teams at ON at.id = g.away_team_id
-             JOIN seasons s ON s.id = g.season_id
-             LEFT JOIN results r ON r.game_id = g.id
-             WHERE g.id = ?'
-        );
+        $stmt = Database::pdo()->prepare(self::GAME_SELECT . ' WHERE g.id = ?');
         $stmt->execute([$id]);
         $row = $stmt->fetch();
-        return $row ?: null;
+        return $row ? self::hydrateGame($row) : null;
+    }
+
+    private static function hydrateGame(array $row): array
+    {
+        $home = [
+            'display_name' => $row['home_display_name'],
+            'team_number' => $row['home_team_number'],
+            'captain_display_name' => $row['home_captain_display_name'],
+            'captain_ranking' => $row['home_captain_ranking'],
+        ];
+        $away = [
+            'display_name' => $row['away_display_name'],
+            'team_number' => $row['away_team_number'],
+            'captain_display_name' => $row['away_captain_display_name'],
+            'captain_ranking' => $row['away_captain_ranking'],
+        ];
+        $row['home_name'] = team_label($home);
+        $row['away_name'] = team_label($away);
+        $row['home_abbrev'] = team_short($home);
+        $row['away_abbrev'] = team_short($away);
+        return $row;
     }
 }

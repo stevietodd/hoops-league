@@ -122,8 +122,3 @@ function tipoff_local_input(?string $utc): string
     $dt = new DateTimeImmutable($utc, new DateTimeZone('UTC'));
     return $dt->setTimezone(new DateTimeZone((string) config('timezone')))->format('Y-m-d\TH:i');
 }
-
-function team_short(array $team): string
-{
-    return $team['abbrev'] !== '' ? $team['abbrev'] : strtoupper(substr($team['name'], 0, 3));
-}
