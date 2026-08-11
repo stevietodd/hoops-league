@@ -68,6 +68,11 @@ final class Auth
         return self::$player && !empty(self::$player['is_captain']);
     }
 
+    public static function canSeeRankings(): bool
+    {
+        return self::isCommissioner() || self::isCaptain();
+    }
+
     public static function isCaptainOf(int $teamId): bool
     {
         return self::isCaptain()

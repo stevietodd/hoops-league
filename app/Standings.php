@@ -56,17 +56,29 @@ final class Standings
         }
 
         $list = array_values($rows);
+        foreach ($list as &$row) {
+            $played = $row['wins'] + $row['losses'];
+            $row['off'] = $played ? $row['points_for'] / $played : null;
+            $row['def'] = $played ? $row['points_against'] / $played : null;
+            $row['diff'] = ($row['off'] !== null && $row['def'] !== null)
+                ? $row['off'] - $row['def']
+                : null;
+        }
+        unset($row);
+
         usort($list, static function (array $a, array $b): int {
             $aPlayed = $a['wins'] + $a['losses'];
             $bPlayed = $b['wins'] + $b['losses'];
             $aPct = $aPlayed ? $a['wins'] / $aPlayed : 0.0;
             $bPct = $bPlayed ? $b['wins'] / $bPlayed : 0.0;
-            $aDiff = $a['points_for'] - $a['points_against'];
-            $bDiff = $b['points_for'] - $b['points_against'];
+            $aDiff = $a['diff'] ?? 0.0;
+            $bDiff = $b['diff'] ?? 0.0;
+            $aOff = $a['off'] ?? 0.0;
+            $bOff = $b['off'] ?? 0.0;
             $aName = team_label($a['team']);
             $bName = team_label($b['team']);
-            return [$bPct, $bDiff, $b['points_for'], $aName]
-                <=> [$aPct, $aDiff, $a['points_for'], $bName];
+            return [$bPct, $bDiff, $bOff, $aName]
+                <=> [$aPct, $aDiff, $aOff, $bName];
         });
         return $list;
     }

@@ -133,12 +133,58 @@ final class ScheduleController
         redirect('/games/' . $id);
     }
 
+    public static function gameSelectSql(): string
+    {
+        return self::GAME_SELECT;
+    }
+
+    public static function hydrateGamePublic(array $row): array
+    {
+        return self::hydrateGame($row);
+    }
+
     public static function findGame(int $id): ?array
     {
         $stmt = Database::pdo()->prepare(self::GAME_SELECT . ' WHERE g.id = ?');
         $stmt->execute([$id]);
         $row = $stmt->fetch();
         return $row ? self::hydrateGame($row) : null;
+    }
+
+    /**
+     * Games for today (local calendar day), or the next date that has games.
+     *
+     * @return array{date: ?string, games: list<array>}
+     */
+    public static function nextGameday(?int $seasonId): array
+    {
+        if ($seasonId === null) {
+            return ['date' => null, 'games' => []];
+        }
+
+        $tz = new DateTimeZone((string) config('timezone'));
+        $today = (new DateTimeImmutable('now', $tz))->format('Y-m-d');
+
+        $stmt = Database::pdo()->prepare(self::GAME_SELECT . ' WHERE g.season_id = ? ORDER BY g.tipoff');
+        $stmt->execute([$seasonId]);
+        $byDate = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $game = self::hydrateGame($row);
+            $localDate = (new DateTimeImmutable($game['tipoff'], new DateTimeZone('UTC')))
+                ->setTimezone($tz)
+                ->format('Y-m-d');
+            if ($localDate < $today) {
+                continue;
+            }
+            $byDate[$localDate][] = $game;
+        }
+
+        if (!$byDate) {
+            return ['date' => null, 'games' => []];
+        }
+
+        $date = array_key_first($byDate);
+        return ['date' => $date, 'games' => $byDate[$date]];
     }
 
     private static function hydrateGame(array $row): array

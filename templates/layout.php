@@ -27,7 +27,23 @@
   <style>
     body { font-family: 'DM Sans', system-ui, sans-serif; }
     .font-display { font-family: 'Archivo Black', system-ui, sans-serif; }
-    .pb-safe { padding-bottom: max(5.5rem, env(safe-area-inset-bottom)); }
+    /*
+      Fixed bottom nav is out of document flow. Reserve matching space with an
+      in-flow spacer sized from the real nav height (includes safe-area padding).
+    */
+    :root {
+      --bottom-nav-height: 5.5rem;
+      --bottom-nav-gap: 1.25rem;
+      --bottom-nav-space: calc(var(--bottom-nav-height) + var(--bottom-nav-gap));
+    }
+    html {
+      scroll-padding-bottom: var(--bottom-nav-space);
+    }
+    .bottom-nav-spacer {
+      flex-shrink: 0;
+      height: var(--bottom-nav-space);
+      pointer-events: none;
+    }
     .field-input { width:100%; border-radius:0.5rem; border:1px solid #cbd5e1; background:#fff; padding:0.75rem; font-size:1rem; }
   </style>
 </head>
@@ -64,16 +80,19 @@
       </div>
     <?php endif; ?>
 
-    <main class="flex-1 px-4 py-4 pb-safe">
+    <main class="flex-1 px-4 py-4">
       <?php require $templateFile; ?>
     </main>
+
+    <div class="bottom-nav-spacer" aria-hidden="true"></div>
 
     <?php
       $path = request_path();
     ?>
-    <nav class="fixed bottom-0 left-0 right-0 z-20 border-t border-court-100 bg-white/95 backdrop-blur"
-         style="padding-bottom: env(safe-area-inset-bottom);">
-      <div class="mx-auto grid max-w-3xl grid-cols-4 <?= $navIsCommissioner ? 'sm:grid-cols-5' : '' ?> text-center text-xs font-medium text-court-500">
+    <nav id="bottom-nav"
+         class="fixed bottom-0 left-0 right-0 z-20 border-t border-court-100 bg-white/95 backdrop-blur"
+         style="padding-bottom: env(safe-area-inset-bottom, 0px);">
+      <div class="mx-auto grid max-w-3xl grid-cols-5 <?= $navIsCommissioner ? 'sm:grid-cols-6' : '' ?> text-center text-[0.65rem] font-medium text-court-500 sm:text-xs">
         <a href="<?= e(url('/')) ?>" class="flex flex-col items-center gap-1 py-3 <?= $path === '/' ? 'text-orange-ball' : '' ?>">
           <span class="text-lg leading-none">⌂</span>Home
         </a>
@@ -86,6 +105,9 @@
         <a href="<?= e(url('/teams')) ?>" class="flex flex-col items-center gap-1 py-3 <?= str_starts_with($path, '/teams') ? 'text-orange-ball' : '' ?>">
           <span class="text-lg leading-none">◎</span>Teams
         </a>
+        <a href="<?= e(url('/subs')) ?>" class="flex flex-col items-center gap-1 py-3 <?= str_starts_with($path, '/subs') ? 'text-orange-ball' : '' ?>">
+          <span class="text-lg leading-none">⇄</span>Subs
+        </a>
         <?php if ($navIsCommissioner): ?>
           <a href="<?= e(url('/manage')) ?>" class="hidden flex-col items-center gap-1 py-3 sm:flex <?= str_starts_with($path, '/manage') ? 'text-orange-ball' : '' ?>">
             <span class="text-lg leading-none">⚙</span>Manage
@@ -94,5 +116,22 @@
       </div>
     </nav>
   </div>
+  <script>
+    (function () {
+      var nav = document.getElementById('bottom-nav');
+      if (!nav) return;
+      function syncBottomNavSpace() {
+        var height = Math.ceil(nav.getBoundingClientRect().height);
+        if (!height) return;
+        document.documentElement.style.setProperty('--bottom-nav-height', height + 'px');
+      }
+      syncBottomNavSpace();
+      window.addEventListener('resize', syncBottomNavSpace);
+      window.addEventListener('orientationchange', syncBottomNavSpace);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', syncBottomNavSpace);
+      }
+    })();
+  </script>
 </body>
 </html>

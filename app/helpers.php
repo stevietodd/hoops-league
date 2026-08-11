@@ -114,6 +114,20 @@ function format_tipoff(string $utc, string $format = 'D, M j · g:i A'): string
     return $dt->setTimezone(new DateTimeZone((string) config('timezone')))->format($format);
 }
 
+function format_avg(?float $value, int $decimals = 1): string
+{
+    return $value === null ? '—' : number_format($value, $decimals);
+}
+
+function format_diff(?float $value, int $decimals = 1): string
+{
+    if ($value === null) {
+        return '—';
+    }
+    $formatted = number_format($value, $decimals);
+    return $value > 0 ? '+' . $formatted : $formatted;
+}
+
 function tipoff_local_input(?string $utc): string
 {
     if (!$utc) {

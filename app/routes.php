@@ -7,6 +7,7 @@ require_once ROOT_PATH . '/app/controllers/AuthController.php';
 require_once ROOT_PATH . '/app/controllers/ScheduleController.php';
 require_once ROOT_PATH . '/app/controllers/TeamController.php';
 require_once ROOT_PATH . '/app/controllers/ManageController.php';
+require_once ROOT_PATH . '/app/controllers/SubFinderController.php';
 
 function register_routes(Router $router): void
 {
@@ -29,6 +30,8 @@ function register_routes(Router $router): void
     $router->post('/teams/{teamId}/roster/{playerId}/update', [TeamController::class, 'updatePlayer']);
     $router->post('/teams/{id}/update', [TeamController::class, 'update']);
     $router->post('/teams/{id}/captain', [TeamController::class, 'assignCaptain']);
+
+    $router->get('/subs', [SubFinderController::class, 'index']);
 
     $router->get('/manage', [ManageController::class, 'hub']);
     $router->get('/manage/games/new', [ManageController::class, 'gameCreateForm']);
