@@ -13,7 +13,7 @@
 <div class="flex items-end justify-between gap-3">
   <div>
     <h1 class="font-display text-3xl">Sub Finder</h1>
-    <p class="mt-1 text-sm text-court-500">Find players free at your tipoff<?= $showRankings ? ' with a matching ranking' : '' ?></p>
+    <p class="mt-1 text-sm text-court-500">Find players free for your game<?= $showRankings ? ' with a matching ranking' : '' ?></p>
   </div>
   <?php if ($step !== 'team'): ?>
     <a href="<?= e(url('/subs')) ?>" class="text-sm font-medium text-orange-ball">Start over</a>
