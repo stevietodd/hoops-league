@@ -25,13 +25,13 @@ Open http://127.0.0.1:8000/
 |-------|----------|------|
 | `admin@hoops.local` | `hoops1234` | Admin |
 | `commissioner@hoops.local` | `hoops1234` | Commissioner |
-| `alex@hoops.local` | `hoops1234` | Court Kings captain |
+| `alex@hoops.local` | `hoops1234` | Captain (demo) |
 
 ## DreamHost deploy
 
 1. Upload the project to your account (e.g. `~/hoops-league`).
 2. In the DreamHost panel, set the domain’s **web directory** to `hoops-league/public`  
-   **or** copy/symlink `public/` contents into `~/bball.dreamhosters.com/` and keep `app/`, `config/`, `templates/`, `data/`, `sql/` outside the web root (adjust paths if needed).
+   **or** copy/symlink `public/` contents into your domain folder and keep `app/`, `config/`, `templates/`, `data/`, `sql/` outside the web root (adjust paths if needed).
 3. Ensure `data/` is writable by the web server.
 4. SSH in and run:
 
@@ -54,28 +54,28 @@ return [
 
 ## Import a season (CSV)
 
-CSV templates live in `imports/_template/`. Summer 2026 data (from the old sheet) is in `imports/summer-2026/`.
+Copy `imports/_template/` into a new folder (e.g. `imports/my-season/`), fill in the CSVs, then run the importer.
 
-**teams.csv** columns: `team_name,first_name,last_name,ranking,isCaptain` (optional: `display_name`, `last_initial`, `player_ranking`)  
+**teams.csv** columns: `team_name,first_name,last_name,ranking,isCaptain` (optional: `display_name`, `last_initial`, `player_ranking`, `team_display_name`)  
 **schedule.csv** columns: `date,time,team1,team2`  
 - `team1` = home, `team2` = away  
-- `team1`/`team2` can be a ranking number (`1`), `team_name`, or captain `display_name`  
+- `team1`/`team2` can be a team number (`1`), `team_name`, or team `display_name`  
 - `ranking` is the team number (schedule + badge); `player_ranking` is the per-player rating in `current_ranking`  
 - Public names always use `players.display_name` for people and `teams.display_name` for teams  
 - Import defaults team label to `Team {team_name}` (override with `team_display_name`); players default to `First L.` when a first name is present
 
 ```bash
 php bin/import_season.php \
-  --season="Summer 2026" \
-  --teams=imports/summer-2026/teams.csv \
-  --schedule=imports/summer-2026/schedule.csv
+  --season="Season Name" \
+  --teams=imports/my-season/teams.csv \
+  --schedule=imports/my-season/schedule.csv
 ```
 
-This replaces teams/players/games/results/seasons (staff logins are kept).
+This replaces teams/players/games/results/seasons (staff logins are kept). Real roster CSVs with PII should stay local (see `.gitignore`).
 
 ## Features
 
-- **Public** — standings, schedule, teams/rosters, game pages
+- **Public** — standings, schedule, teams/rosters, game pages, Sub Finder
 - **Captains** — edit own roster; report scores for own games
 - **Commissioner** — manage hub, create/edit games, assign captains
 - **Admin** — promote/demote commissioners
