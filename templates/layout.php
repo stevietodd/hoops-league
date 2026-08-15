@@ -52,7 +52,7 @@
     <header class="sticky top-0 z-20 border-b border-court-100/80 bg-court-50/95 backdrop-blur">
       <div class="flex items-center justify-between px-4 py-3">
         <a href="<?= e(url('/')) ?>" class="font-display text-xl tracking-tight text-court-900">
-          HOOPS<span class="text-orange-ball">.</span>
+          HOOPS
         </a>
         <div class="flex items-center gap-3 text-sm">
           <?php if ($activeSeason): ?>
