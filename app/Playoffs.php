@@ -1,0 +1,309 @@
+<?php
+
+declare(strict_types=1);
+
+/** Single-elimination playoff helpers. */
+
+final class Playoffs
+{
+    /** Standard seed order into opening-round slot indices (power of two). */
+    public static function seedSlotOrder(int $bracketSize): array
+    {
+        return match ($bracketSize) {
+            4 => [1, 4, 2, 3],
+            8 => [1, 8, 4, 5, 2, 7, 3, 6],
+            default => throw new InvalidArgumentException('Bracket size must be 4 or 8.'),
+        };
+    }
+
+    public static function roundCount(int $bracketSize): int
+    {
+        return (int) log($bracketSize, 2);
+    }
+
+    public static function roundLabel(int $round, int $bracketSize): string
+    {
+        $total = self::roundCount($bracketSize);
+        $fromEnd = $total - $round + 1;
+        return match ($fromEnd) {
+            1 => 'Final',
+            2 => 'Semifinals',
+            3 => 'Quarterfinals',
+            default => 'Round ' . $round,
+        };
+    }
+
+    public static function findTournamentForSeason(int $seasonId): ?array
+    {
+        $stmt = Database::pdo()->prepare('SELECT * FROM playoff_tournaments WHERE season_id = ?');
+        $stmt->execute([$seasonId]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    public static function findTournament(int $id): ?array
+    {
+        $stmt = Database::pdo()->prepare('SELECT * FROM playoff_tournaments WHERE id = ?');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    /** @return list<array> */
+    public static function slotsForTournament(int $tournamentId): array
+    {
+        $stmt = Database::pdo()->prepare(
+            'SELECT s.*,
+                    t.display_name AS team_display_name,
+                    t.team_number AS team_number,
+                    t.color AS team_color
+             FROM playoff_slots s
+             LEFT JOIN teams t ON t.id = s.team_id
+             WHERE s.tournament_id = ?
+             ORDER BY s.round, s.slot_index'
+        );
+        $stmt->execute([$tournamentId]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Create tournament + empty bracket, seed round 1 from standings, create first-round games.
+     *
+     * @param list<array> $standingsRows from Standings::compute()
+     */
+    public static function createFromStandings(
+        int $seasonId,
+        int $bracketSize,
+        array $standingsRows,
+        string $firstTipoffUtc,
+        string $location = ''
+    ): array {
+        if (!in_array($bracketSize, [4, 8], true)) {
+            throw new InvalidArgumentException('Bracket size must be 4 or 8.');
+        }
+        if (count($standingsRows) < $bracketSize) {
+            throw new RuntimeException('Need at least ' . $bracketSize . ' teams in standings.');
+        }
+        if (self::findTournamentForSeason($seasonId)) {
+            throw new RuntimeException('A playoff tournament already exists for this season.');
+        }
+
+        $pdo = Database::pdo();
+        $pdo->beginTransaction();
+        try {
+            $pdo->prepare(
+                'INSERT INTO playoff_tournaments (season_id, bracket_size, status) VALUES (?, ?, \'in_progress\')'
+            )->execute([$seasonId, $bracketSize]);
+            $tournamentId = (int) $pdo->lastInsertId();
+
+            $roundCount = self::roundCount($bracketSize);
+            /** @var array<string, int> $slotIds round:index => id */
+            $slotIds = [];
+            $ins = $pdo->prepare(
+                'INSERT INTO playoff_slots (tournament_id, round, slot_index, team_id, seed, game_id, feeds_slot_id)
+                 VALUES (?, ?, ?, NULL, NULL, NULL, NULL)'
+            );
+            for ($round = 1; $round <= $roundCount; $round++) {
+                $slotsInRound = (int) ($bracketSize / (2 ** ($round - 1)));
+                for ($i = 0; $i < $slotsInRound; $i++) {
+                    $ins->execute([$tournamentId, $round, $i]);
+                    $slotIds[$round . ':' . $i] = (int) $pdo->lastInsertId();
+                }
+            }
+
+            $updFeed = $pdo->prepare('UPDATE playoff_slots SET feeds_slot_id = ? WHERE id = ?');
+            for ($round = 1; $round < $roundCount; $round++) {
+                $slotsInRound = (int) ($bracketSize / (2 ** ($round - 1)));
+                for ($i = 0; $i < $slotsInRound; $i++) {
+                    $nextIndex = intdiv($i, 2);
+                    $updFeed->execute([
+                        $slotIds[($round + 1) . ':' . $nextIndex],
+                        $slotIds[$round . ':' . $i],
+                    ]);
+                }
+            }
+
+            $seedOrder = self::seedSlotOrder($bracketSize);
+            $updTeam = $pdo->prepare('UPDATE playoff_slots SET team_id = ?, seed = ? WHERE id = ?');
+            foreach ($seedOrder as $slotIndex => $seed) {
+                $team = $standingsRows[$seed - 1]['team'];
+                $updTeam->execute([(int) $team['id'], $seed, $slotIds['1:' . $slotIndex]]);
+            }
+
+            self::createGamesForRound($tournamentId, 1, $seasonId, $firstTipoffUtc, $location);
+
+            $pdo->prepare("UPDATE seasons SET status = 'playoffs' WHERE id = ?")->execute([$seasonId]);
+            $pdo->commit();
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+
+        return self::findTournament($tournamentId);
+    }
+
+    public static function createGamesForRound(
+        int $tournamentId,
+        int $round,
+        int $seasonId,
+        string $tipoffUtc,
+        string $location = ''
+    ): int {
+        $pdo = Database::pdo();
+        $stmt = $pdo->prepare(
+            'SELECT * FROM playoff_slots WHERE tournament_id = ? AND round = ? ORDER BY slot_index'
+        );
+        $stmt->execute([$tournamentId, $round]);
+        $slots = $stmt->fetchAll();
+        $created = 0;
+        $insGame = $pdo->prepare(
+            'INSERT INTO games (season_id, home_team_id, away_team_id, tipoff, location, status, phase)
+             VALUES (?, ?, ?, ?, ?, \'scheduled\', \'playoff\')'
+        );
+        $link = $pdo->prepare('UPDATE playoff_slots SET game_id = ? WHERE id IN (?, ?)');
+
+        for ($i = 0; $i + 1 < count($slots); $i += 2) {
+            $a = $slots[$i];
+            $b = $slots[$i + 1];
+            if (!empty($a['game_id']) || !empty($b['game_id'])) {
+                continue;
+            }
+            if (empty($a['team_id']) || empty($b['team_id'])) {
+                continue;
+            }
+            $seedA = (int) ($a['seed'] ?? PHP_INT_MAX);
+            $seedB = (int) ($b['seed'] ?? PHP_INT_MAX);
+            // Better seed (lower number) is home; if unknown, first slot is home.
+            if ($seedA <= $seedB) {
+                $homeId = (int) $a['team_id'];
+                $awayId = (int) $b['team_id'];
+            } else {
+                $homeId = (int) $b['team_id'];
+                $awayId = (int) $a['team_id'];
+            }
+            $insGame->execute([$seasonId, $homeId, $awayId, $tipoffUtc, $location]);
+            $gameId = (int) $pdo->lastInsertId();
+            $link->execute([$gameId, (int) $a['id'], (int) $b['id']]);
+            $created++;
+        }
+        return $created;
+    }
+
+    /** After a playoff game is finalized, advance the winner and maybe create the next game. */
+    public static function advanceFromGame(int $gameId): void
+    {
+        $pdo = Database::pdo();
+        $gameStmt = $pdo->prepare(
+            'SELECT g.*, r.home_score, r.away_score
+             FROM games g
+             JOIN results r ON r.game_id = g.id
+             WHERE g.id = ? AND g.phase = \'playoff\' AND g.status = \'final\''
+        );
+        $gameStmt->execute([$gameId]);
+        $game = $gameStmt->fetch();
+        if (!$game) {
+            return;
+        }
+
+        $winnerId = ((int) $game['home_score'] > (int) $game['away_score'])
+            ? (int) $game['home_team_id']
+            : (int) $game['away_team_id'];
+
+        $slotsStmt = $pdo->prepare('SELECT * FROM playoff_slots WHERE game_id = ? ORDER BY slot_index');
+        $slotsStmt->execute([$gameId]);
+        $slots = $slotsStmt->fetchAll();
+        if (count($slots) < 2) {
+            return;
+        }
+
+        $feedsId = $slots[0]['feeds_slot_id'] !== null ? (int) $slots[0]['feeds_slot_id'] : null;
+        $tournamentId = (int) $slots[0]['tournament_id'];
+        $tournament = self::findTournament($tournamentId);
+        if (!$tournament) {
+            return;
+        }
+
+        // Carry the better (lower) seed forward when known.
+        $winnerSeed = null;
+        foreach ($slots as $slot) {
+            if ((int) ($slot['team_id'] ?? 0) === $winnerId && $slot['seed'] !== null) {
+                $winnerSeed = (int) $slot['seed'];
+                break;
+            }
+        }
+
+        if ($feedsId === null) {
+            // Final game — tournament complete.
+            $pdo->prepare(
+                'UPDATE playoff_tournaments SET status = \'complete\' WHERE id = ?'
+            )->execute([$tournamentId]);
+            $pdo->prepare(
+                'UPDATE seasons SET champion_team_id = ? WHERE id = ?'
+            )->execute([$winnerId, (int) $tournament['season_id']]);
+            return;
+        }
+
+        $pdo->prepare(
+            'UPDATE playoff_slots SET team_id = ?, seed = COALESCE(?, seed) WHERE id = ?'
+        )->execute([$winnerId, $winnerSeed, $feedsId]);
+
+        $next = $pdo->prepare('SELECT * FROM playoff_slots WHERE id = ?');
+        $next->execute([$feedsId]);
+        $nextSlot = $next->fetch();
+        if (!$nextSlot) {
+            return;
+        }
+
+        $round = (int) $nextSlot['round'];
+        $pairIndex = (int) $nextSlot['slot_index'];
+        $mateIndex = $pairIndex % 2 === 0 ? $pairIndex + 1 : $pairIndex - 1;
+        $mateStmt = $pdo->prepare(
+            'SELECT * FROM playoff_slots WHERE tournament_id = ? AND round = ? AND slot_index = ?'
+        );
+        $mateStmt->execute([$tournamentId, $round, $mateIndex]);
+        $mate = $mateStmt->fetch();
+        if (!$mate || empty($mate['team_id']) || empty($nextSlot['team_id'])) {
+            return;
+        }
+        if (!empty($nextSlot['game_id']) || !empty($mate['game_id'])) {
+            return;
+        }
+
+        // Default tipoff: 7 days after this game, same clock time.
+        $tipoff = (new DateTimeImmutable($game['tipoff'], new DateTimeZone('UTC')))
+            ->modify('+7 days')
+            ->format('Y-m-d H:i:s');
+        self::createGamesForRound(
+            $tournamentId,
+            $round,
+            (int) $tournament['season_id'],
+            $tipoff,
+            (string) ($game['location'] ?? '')
+        );
+    }
+
+    /** @return array<int, list<array>> */
+    public static function bracketByRound(int $tournamentId): array
+    {
+        $slots = self::slotsForTournament($tournamentId);
+        $byRound = [];
+        foreach ($slots as $slot) {
+            $byRound[(int) $slot['round']][] = $slot;
+        }
+        return $byRound;
+    }
+
+    /** Pair slots into matchups for display. */
+    public static function matchupsForRound(array $roundSlots): array
+    {
+        $matchups = [];
+        for ($i = 0; $i + 1 < count($roundSlots); $i += 2) {
+            $matchups[] = [
+                'slot_a' => $roundSlots[$i],
+                'slot_b' => $roundSlots[$i + 1],
+                'game_id' => $roundSlots[$i]['game_id'] ?? $roundSlots[$i + 1]['game_id'] ?? null,
+            ];
+        }
+        return $matchups;
+    }
+}

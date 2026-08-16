@@ -26,6 +26,9 @@
             <div class="flex items-start justify-between gap-3">
               <div>
                 <p class="text-xs font-medium uppercase tracking-wide text-court-400">
+                  <?php if (($game['phase'] ?? 'regular') === 'playoff'): ?>
+                    <span class="text-orange-ball">Playoff</span> ·
+                  <?php endif; ?>
                   <?= e(format_tipoff($game['tipoff'], 'g:i A')) ?>
                 </p>
                 <p class="mt-1 font-semibold">

@@ -3,6 +3,11 @@
 
 <div class="mt-6 grid gap-3 sm:grid-cols-2">
   <a href="<?= e(url('/manage/games/new')) ?>" class="rounded-xl border border-court-100 bg-white px-4 py-4 font-semibold shadow-sm">Add game</a>
+  <?php if (empty($playoffTournament)): ?>
+    <a href="<?= e(url('/manage/playoffs/new')) ?>" class="rounded-xl border border-court-100 bg-white px-4 py-4 font-semibold shadow-sm">Start playoffs</a>
+  <?php else: ?>
+    <a href="<?= e(url('/playoffs')) ?>" class="rounded-xl border border-court-100 bg-white px-4 py-4 font-semibold shadow-sm">View playoffs</a>
+  <?php endif; ?>
   <?php if ($navIsAdmin): ?>
     <a href="<?= e(url('/manage/users')) ?>" class="rounded-xl border border-court-100 bg-white px-4 py-4 font-semibold shadow-sm">Manage commissioners</a>
   <?php endif; ?>

@@ -129,6 +129,15 @@ final class ScheduleController
             redirect('/games/' . $id . '/report');
         }
 
+        if (($game['phase'] ?? 'regular') === 'playoff') {
+            try {
+                Playoffs::advanceFromGame((int) $id);
+            } catch (Throwable $e) {
+                flash('error', 'Score saved, but playoff bracket could not advance: ' . $e->getMessage());
+                redirect('/games/' . $id);
+            }
+        }
+
         flash('success', 'Score saved. Game marked final.');
         redirect('/games/' . $id);
     }

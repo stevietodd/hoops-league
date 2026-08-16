@@ -31,7 +31,7 @@ final class Standings
             'SELECT g.home_team_id, g.away_team_id, r.home_score, r.away_score
              FROM games g
              INNER JOIN results r ON r.game_id = g.id
-             WHERE g.season_id = ? AND g.status = \'final\''
+             WHERE g.season_id = ? AND g.status = \'final\' AND g.phase = \'regular\''
         );
         $stmt->execute([$seasonId]);
         foreach ($stmt->fetchAll() as $game) {

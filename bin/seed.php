@@ -95,8 +95,8 @@ $schedule = [
 ];
 
 $insGame = $pdo->prepare(
-    'INSERT INTO games (season_id, home_team_id, away_team_id, tipoff, location, status)
-     VALUES (?, ?, ?, ?, ?, ?)'
+    'INSERT INTO games (season_id, home_team_id, away_team_id, tipoff, location, status, phase)
+     VALUES (?, ?, ?, ?, ?, ?, \'regular\')'
 );
 $insResult = $pdo->prepare(
     'INSERT INTO results (game_id, home_score, away_score, submitted_by) VALUES (?, ?, ?, ?)'

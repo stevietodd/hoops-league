@@ -75,9 +75,9 @@ This replaces teams/players/games/results/seasons (staff logins are kept). Real 
 
 ## Features
 
-- **Public** — standings, schedule, teams/rosters, game pages, Sub Finder
+- **Public** — standings, schedule, playoffs, teams/rosters, game pages, Sub Finder
 - **Captains** — edit own roster; report scores for own games
-- **Commissioner** — manage hub, create/edit games, assign captains
+- **Commissioner** — manage hub, create/edit games, start playoffs, assign captains
 - **Admin** — promote/demote commissioners
 
-Scores are **team totals only** (no individual player points).
+Scores are **team totals only** (no individual player points). Standings use regular-season games only.

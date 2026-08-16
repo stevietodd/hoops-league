@@ -57,7 +57,66 @@ final class ManageController
             'season' => $season,
             'teams' => $teams,
             'upcoming' => $upcoming,
+            'playoffTournament' => $season
+                ? Playoffs::findTournamentForSeason((int) $season['id'])
+                : null,
+            'standingsCount' => $season
+                ? count(Standings::compute((int) $season['id']))
+                : 0,
         ]);
+    }
+
+    public static function playoffCreateForm(): void
+    {
+        Auth::requireCommissioner();
+        $season = Database::activeSeason();
+        if (!$season) {
+            flash('error', 'No active season.');
+            redirect('/manage');
+        }
+        if (Playoffs::findTournamentForSeason((int) $season['id'])) {
+            flash('error', 'Playoffs already exist for this season.');
+            redirect('/playoffs');
+        }
+        $standings = Standings::compute((int) $season['id']);
+        render('manage_playoffs', [
+            'title' => 'Start playoffs',
+            'season' => $season,
+            'standings' => $standings,
+        ]);
+    }
+
+    public static function playoffCreate(): void
+    {
+        Auth::requireCommissioner();
+        verify_csrf();
+        $season = Database::activeSeason();
+        if (!$season) {
+            flash('error', 'No active season.');
+            redirect('/manage');
+        }
+        $bracketSize = (int) ($_POST['bracket_size'] ?? 8);
+        $tipoffLocal = trim((string) ($_POST['tipoff'] ?? ''));
+        $location = trim((string) ($_POST['location'] ?? ''));
+        $dt = DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $tipoffLocal, new DateTimeZone(config('timezone')));
+        if (!$dt || !in_array($bracketSize, [4, 8], true)) {
+            flash('error', 'Choose a valid bracket size and first-round tipoff.');
+            redirect('/manage/playoffs/new');
+        }
+        try {
+            Playoffs::createFromStandings(
+                (int) $season['id'],
+                $bracketSize,
+                Standings::compute((int) $season['id']),
+                $dt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+                $location
+            );
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+            redirect('/manage/playoffs/new');
+        }
+        flash('success', 'Playoff bracket created and seeded from standings.');
+        redirect('/playoffs');
     }
 
     public static function gameCreateForm(): void
@@ -81,8 +140,8 @@ final class ManageController
             redirect('/manage/games/new');
         }
         $stmt = Database::pdo()->prepare(
-            'INSERT INTO games (season_id, home_team_id, away_team_id, tipoff, location, status)
-             VALUES (?, ?, ?, ?, ?, ?)'
+            'INSERT INTO games (season_id, home_team_id, away_team_id, tipoff, location, status, phase)
+             VALUES (?, ?, ?, ?, ?, ?, \'regular\')'
         );
         $stmt->execute([
             $data['season_id'],

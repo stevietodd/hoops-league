@@ -27,7 +27,10 @@ final class Database
 
         if (!self::hasModernPlayerSchema()) {
             self::rebuildLeagueSchema();
+            return;
         }
+
+        self::migratePlayoffs();
     }
 
     public static function pdo(): PDO
@@ -55,13 +58,63 @@ final class Database
     {
         $pdo = self::pdo();
         $pdo->exec('PRAGMA foreign_keys = OFF');
-        foreach (['results', 'games', 'team_roster', 'teams', 'players', 'seasons'] as $table) {
+        foreach ([
+            'results',
+            'playoff_slots',
+            'playoff_tournaments',
+            'games',
+            'team_roster',
+            'teams',
+            'players',
+            'seasons',
+        ] as $table) {
             $pdo->exec('DROP TABLE IF EXISTS ' . $table);
         }
-        // Drop legacy tables if present
         $pdo->exec('DROP TABLE IF EXISTS players_legacy');
         $pdo->exec('PRAGMA foreign_keys = ON');
         self::applySchema();
+    }
+
+    public static function migratePlayoffs(): void
+    {
+        $pdo = self::pdo();
+        $seasonCols = array_column($pdo->query('PRAGMA table_info(seasons)')->fetchAll(), 'name');
+        if (!in_array('status', $seasonCols, true)) {
+            $pdo->exec("ALTER TABLE seasons ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
+        }
+        if (!in_array('champion_team_id', $seasonCols, true)) {
+            $pdo->exec('ALTER TABLE seasons ADD COLUMN champion_team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL');
+        }
+
+        $gameCols = array_column($pdo->query('PRAGMA table_info(games)')->fetchAll(), 'name');
+        if (!in_array('phase', $gameCols, true)) {
+            $pdo->exec("ALTER TABLE games ADD COLUMN phase TEXT NOT NULL DEFAULT 'regular'");
+        }
+
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS playoff_tournaments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                season_id INTEGER NOT NULL UNIQUE REFERENCES seasons(id) ON DELETE CASCADE,
+                bracket_size INTEGER NOT NULL CHECK (bracket_size IN (4, 8)),
+                status TEXT NOT NULL DEFAULT \'setup\' CHECK (status IN (\'setup\', \'in_progress\', \'complete\'))
+            )'
+        );
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS playoff_slots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tournament_id INTEGER NOT NULL REFERENCES playoff_tournaments(id) ON DELETE CASCADE,
+                round INTEGER NOT NULL,
+                slot_index INTEGER NOT NULL,
+                team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
+                seed INTEGER,
+                game_id INTEGER REFERENCES games(id) ON DELETE SET NULL,
+                feeds_slot_id INTEGER REFERENCES playoff_slots(id) ON DELETE SET NULL,
+                UNIQUE (tournament_id, round, slot_index)
+            )'
+        );
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_games_phase ON games(season_id, phase)');
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_playoff_slots_tournament ON playoff_slots(tournament_id, round, slot_index)');
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_playoff_slots_game ON playoff_slots(game_id)');
     }
 
     private static function hasModernPlayerSchema(): bool

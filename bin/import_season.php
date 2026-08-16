@@ -296,8 +296,8 @@ try {
 
     $tz = new DateTimeZone((string) config('timezone'));
     $insGame = $pdo->prepare(
-        'INSERT INTO games (season_id, home_team_id, away_team_id, tipoff, location, status)
-         VALUES (?, ?, ?, ?, ?, \'scheduled\')'
+        'INSERT INTO games (season_id, home_team_id, away_team_id, tipoff, location, status, phase)
+         VALUES (?, ?, ?, ?, ?, \'scheduled\', \'regular\')'
     );
 
     foreach ($scheduleRows as $i => $row) {

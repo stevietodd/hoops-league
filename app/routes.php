@@ -8,6 +8,7 @@ require_once ROOT_PATH . '/app/controllers/ScheduleController.php';
 require_once ROOT_PATH . '/app/controllers/TeamController.php';
 require_once ROOT_PATH . '/app/controllers/ManageController.php';
 require_once ROOT_PATH . '/app/controllers/SubFinderController.php';
+require_once ROOT_PATH . '/app/controllers/PlayoffController.php';
 
 function register_routes(Router $router): void
 {
@@ -32,12 +33,15 @@ function register_routes(Router $router): void
     $router->post('/teams/{id}/captain', [TeamController::class, 'assignCaptain']);
 
     $router->get('/subs', [SubFinderController::class, 'index']);
+    $router->get('/playoffs', [PlayoffController::class, 'index']);
 
     $router->get('/manage', [ManageController::class, 'hub']);
     $router->get('/manage/games/new', [ManageController::class, 'gameCreateForm']);
     $router->post('/manage/games/new', [ManageController::class, 'gameCreate']);
     $router->get('/manage/games/{id}/edit', [ManageController::class, 'gameEditForm']);
     $router->post('/manage/games/{id}/edit', [ManageController::class, 'gameEdit']);
+    $router->get('/manage/playoffs/new', [ManageController::class, 'playoffCreateForm']);
+    $router->post('/manage/playoffs/new', [ManageController::class, 'playoffCreate']);
     $router->get('/manage/users', [ManageController::class, 'users']);
     $router->post('/manage/users/{id}/toggle-commissioner', [ManageController::class, 'toggleCommissioner']);
 }

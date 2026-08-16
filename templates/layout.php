@@ -92,7 +92,7 @@
     <nav id="bottom-nav"
          class="fixed bottom-0 left-0 right-0 z-20 border-t border-court-100 bg-white/95 backdrop-blur"
          style="padding-bottom: env(safe-area-inset-bottom, 0px);">
-      <div class="mx-auto grid max-w-3xl grid-cols-5 <?= $navIsCommissioner ? 'sm:grid-cols-6' : '' ?> text-center text-[0.65rem] font-medium text-court-500 sm:text-xs">
+      <div class="mx-auto grid max-w-3xl grid-cols-6 <?= $navIsCommissioner ? 'sm:grid-cols-7' : '' ?> text-center text-[0.6rem] font-medium text-court-500 sm:text-xs">
         <a href="<?= e(url('/')) ?>" class="flex flex-col items-center gap-1 py-3 <?= $path === '/' ? 'text-orange-ball' : '' ?>">
           <span class="text-lg leading-none">⌂</span>Home
         </a>
@@ -101,6 +101,9 @@
         </a>
         <a href="<?= e(url('/standings')) ?>" class="flex flex-col items-center gap-1 py-3 <?= $path === '/standings' ? 'text-orange-ball' : '' ?>">
           <span class="text-lg leading-none">#</span>Standings
+        </a>
+        <a href="<?= e(url('/playoffs')) ?>" class="flex flex-col items-center gap-1 py-3 <?= str_starts_with($path, '/playoffs') ? 'text-orange-ball' : '' ?>">
+          <span class="text-lg leading-none">⚑</span>Playoffs
         </a>
         <a href="<?= e(url('/teams')) ?>" class="flex flex-col items-center gap-1 py-3 <?= str_starts_with($path, '/teams') ? 'text-orange-ball' : '' ?>">
           <span class="text-lg leading-none">◎</span>Teams

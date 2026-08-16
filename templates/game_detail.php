@@ -4,6 +4,9 @@
 
 <article class="mt-4 rounded-2xl border border-court-100 bg-white p-5 shadow-sm">
   <p class="text-xs font-medium uppercase tracking-wide text-court-400">
+    <?php if (($game['phase'] ?? 'regular') === 'playoff'): ?>
+      <span class="text-orange-ball">Playoff</span> ·
+    <?php endif; ?>
     <?= e(format_tipoff($game['tipoff'], 'l, F j · g:i A')) ?>
   </p>
   <h1 class="mt-3 font-display text-2xl leading-tight sm:text-3xl">
