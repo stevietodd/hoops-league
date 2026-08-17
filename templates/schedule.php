@@ -1,7 +1,13 @@
 <div class="flex items-end justify-between gap-3">
   <div>
     <h1 class="font-display text-3xl">Schedule</h1>
-    <p class="mt-1 text-sm text-court-500"><?= $season ? e($season['name']) : 'No active season' ?></p>
+    <p class="mt-1 text-sm text-court-500">
+      <?php if ($season): ?>
+        <a href="<?= e(url('/seasons')) ?>" class="hover:text-court-900"><?= e($season['name']) ?></a>
+      <?php else: ?>
+        No active season
+      <?php endif; ?>
+    </p>
   </div>
   <?php if ($navIsCommissioner): ?>
     <a href="<?= e(url('/manage/games/new')) ?>" class="rounded-lg bg-orange-ball px-3 py-2 text-sm font-semibold text-white">Add game</a>

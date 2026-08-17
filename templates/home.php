@@ -1,6 +1,10 @@
 <section>
   <p class="text-sm font-medium uppercase tracking-wide text-court-500">
-    <?= $season ? e($season['name']) : 'No active season' ?>
+    <?php if ($season): ?>
+      <a href="<?= e(url('/seasons')) ?>" class="hover:text-court-900"><?= e($season['name']) ?></a>
+    <?php else: ?>
+      No active season
+    <?php endif; ?>
   </p>
 </section>
 

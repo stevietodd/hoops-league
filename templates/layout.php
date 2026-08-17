@@ -56,7 +56,7 @@
         </a>
         <div class="flex items-center gap-3 text-sm">
           <?php if ($activeSeason): ?>
-            <span class="hidden text-court-500 sm:inline"><?= e($activeSeason['name']) ?></span>
+            <a href="<?= e(url('/seasons')) ?>" class="hidden text-court-500 hover:text-court-900 sm:inline"><?= e($activeSeason['name']) ?></a>
           <?php endif; ?>
           <?php if ($currentUser): ?>
             <form method="post" action="<?= e(url('/logout')) ?>">

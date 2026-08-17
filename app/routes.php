@@ -9,11 +9,13 @@ require_once ROOT_PATH . '/app/controllers/TeamController.php';
 require_once ROOT_PATH . '/app/controllers/ManageController.php';
 require_once ROOT_PATH . '/app/controllers/SubFinderController.php';
 require_once ROOT_PATH . '/app/controllers/PlayoffController.php';
+require_once ROOT_PATH . '/app/controllers/SeasonController.php';
 
 function register_routes(Router $router): void
 {
     $router->get('/', [HomeController::class, 'home']);
     $router->get('/standings', [HomeController::class, 'standings']);
+    $router->get('/seasons', [SeasonController::class, 'index']);
 
     $router->get('/login', [AuthController::class, 'loginForm']);
     $router->post('/login', [AuthController::class, 'login']);

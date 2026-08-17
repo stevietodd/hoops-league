@@ -4,7 +4,13 @@
   };
 ?>
 <h1 class="font-display text-3xl">Standings</h1>
-<p class="mt-1 text-sm text-court-500"><?= $season ? e($season['name']) : 'No active season' ?></p>
+<p class="mt-1 text-sm text-court-500">
+  <?php if ($season): ?>
+    <a href="<?= e(url('/seasons')) ?>" class="hover:text-court-900"><?= e($season['name']) ?></a>
+  <?php else: ?>
+    No active season
+  <?php endif; ?>
+</p>
 
 <?php if ($standings): ?>
   <div class="mt-6 overflow-x-auto rounded-xl border border-court-100 bg-white">

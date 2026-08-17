@@ -1,5 +1,11 @@
 <h1 class="font-display text-3xl">Playoffs</h1>
-<p class="mt-1 text-sm text-court-500"><?= $season ? e($season['name']) : 'No active season' ?></p>
+<p class="mt-1 text-sm text-court-500">
+  <?php if ($season): ?>
+    <a href="<?= e(url('/seasons')) ?>" class="hover:text-court-900"><?= e($season['name']) ?></a>
+  <?php else: ?>
+    No active season
+  <?php endif; ?>
+</p>
 
 <?php if (!$tournament): ?>
   <p class="mt-8 rounded-xl border border-dashed border-court-200 px-4 py-8 text-center text-court-500">
