@@ -28,6 +28,20 @@ final class PlayoffController
                     }
                 }
                 unset($m);
+                usort($matchups, static function (array $a, array $b): int {
+                    $tipA = $a['game']['tipoff'] ?? null;
+                    $tipB = $b['game']['tipoff'] ?? null;
+                    if ($tipA === null && $tipB === null) {
+                        return 0;
+                    }
+                    if ($tipA === null) {
+                        return 1;
+                    }
+                    if ($tipB === null) {
+                        return -1;
+                    }
+                    return strcmp((string) $tipA, (string) $tipB);
+                });
                 $rounds[] = [
                     'round' => $roundNum,
                     'label' => Playoffs::roundLabel($roundNum, (int) $tournament['bracket_size']),

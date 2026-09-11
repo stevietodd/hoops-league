@@ -6,7 +6,7 @@
   <?php if (empty($playoffTournament)): ?>
     <a href="<?= e(url('/manage/playoffs/new')) ?>" class="rounded-xl border border-court-100 bg-white px-4 py-4 font-semibold shadow-sm">Start playoffs</a>
   <?php else: ?>
-    <a href="<?= e(url('/playoffs')) ?>" class="rounded-xl border border-court-100 bg-white px-4 py-4 font-semibold shadow-sm">View playoffs</a>
+    <a href="<?= e(url('/manage/playoffs')) ?>" class="rounded-xl border border-court-100 bg-white px-4 py-4 font-semibold shadow-sm">Manage playoffs</a>
   <?php endif; ?>
   <?php if ($navIsAdmin): ?>
     <a href="<?= e(url('/manage/users')) ?>" class="rounded-xl border border-court-100 bg-white px-4 py-4 font-semibold shadow-sm">Manage commissioners</a>

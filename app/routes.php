@@ -42,8 +42,11 @@ function register_routes(Router $router): void
     $router->post('/manage/games/new', [ManageController::class, 'gameCreate']);
     $router->get('/manage/games/{id}/edit', [ManageController::class, 'gameEditForm']);
     $router->post('/manage/games/{id}/edit', [ManageController::class, 'gameEdit']);
+    $router->get('/manage/playoffs', [ManageController::class, 'playoffManage']);
     $router->get('/manage/playoffs/new', [ManageController::class, 'playoffCreateForm']);
     $router->post('/manage/playoffs/new', [ManageController::class, 'playoffCreate']);
+    $router->post('/manage/playoffs/seeds', [ManageController::class, 'playoffUpdateSeeds']);
+    $router->post('/manage/playoffs/games', [ManageController::class, 'playoffUpdateGames']);
     $router->get('/manage/users', [ManageController::class, 'users']);
     $router->post('/manage/users/{id}/toggle-commissioner', [ManageController::class, 'toggleCommissioner']);
 }

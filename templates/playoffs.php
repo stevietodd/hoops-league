@@ -17,6 +17,12 @@
     </p>
   <?php endif; ?>
 <?php else: ?>
+  <?php if ($navIsCommissioner): ?>
+    <p class="mt-4">
+      <a href="<?= e(url('/manage/playoffs')) ?>" class="text-sm font-medium text-orange-ball">Manage seeds &amp; tipoffs →</a>
+    </p>
+  <?php endif; ?>
+
   <p class="mt-2 text-sm text-court-500">
     <?= (int) $tournament['bracket_size'] ?>-team single elimination
     · <?= e(ucfirst(str_replace('_', ' ', $tournament['status']))) ?>

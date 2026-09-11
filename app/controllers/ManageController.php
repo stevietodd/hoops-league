@@ -75,14 +75,68 @@ final class ManageController
             redirect('/manage');
         }
         if (Playoffs::findTournamentForSeason((int) $season['id'])) {
-            flash('error', 'Playoffs already exist for this season.');
-            redirect('/playoffs');
+            redirect('/manage/playoffs');
         }
         $standings = Standings::compute((int) $season['id']);
+        $defaultSize = count($standings) >= 8 ? 8 : 4;
         render('manage_playoffs', [
             'title' => 'Start playoffs',
             'season' => $season,
             'standings' => $standings,
+            'tournament' => null,
+            'games' => [],
+            'seeds' => [],
+            'teams' => [],
+            'canEditSeeds' => false,
+            'openingMatchups' => self::openingMatchupPreview($standings, $defaultSize),
+            'openingMatchupsBySize' => [
+                4 => self::openingMatchupPreview($standings, 4),
+                8 => self::openingMatchupPreview($standings, 8),
+            ],
+        ]);
+    }
+
+    public static function playoffManage(): void
+    {
+        Auth::requireCommissioner();
+        $season = Database::activeSeason();
+        if (!$season) {
+            flash('error', 'No active season.');
+            redirect('/manage');
+        }
+        $tournament = Playoffs::findTournamentForSeason((int) $season['id']);
+        if (!$tournament) {
+            redirect('/manage/playoffs/new');
+        }
+        $games = Playoffs::gamesForTournament((int) $tournament['id']);
+        $canEditSeeds = true;
+        foreach ($games as $g) {
+            if ((int) ($g['round'] ?? 0) === 1 && ($g['status'] ?? '') === 'final') {
+                $canEditSeeds = false;
+                break;
+            }
+        }
+        $seeds = Playoffs::round1BySeed((int) $tournament['id']);
+        $teamsStmt = Database::pdo()->prepare(
+            'SELECT t.*,
+                    p.display_name AS captain_display_name,
+                    p.current_ranking AS captain_ranking
+             FROM teams t
+             JOIN players p ON p.id = t.captain_id
+             WHERE t.season_id = ?
+             ORDER BY CAST(t.team_number AS INTEGER), t.team_number, t.display_name'
+        );
+        $teamsStmt->execute([(int) $season['id']]);
+        render('manage_playoffs', [
+            'title' => 'Manage playoffs',
+            'season' => $season,
+            'standings' => Standings::compute((int) $season['id']),
+            'tournament' => $tournament,
+            'games' => $games,
+            'seeds' => $seeds,
+            'teams' => $teamsStmt->fetchAll(),
+            'canEditSeeds' => $canEditSeeds,
+            'openingMatchups' => [],
         ]);
     }
 
@@ -96,11 +150,14 @@ final class ManageController
             redirect('/manage');
         }
         $bracketSize = (int) ($_POST['bracket_size'] ?? 8);
-        $tipoffLocal = trim((string) ($_POST['tipoff'] ?? ''));
         $location = trim((string) ($_POST['location'] ?? ''));
-        $dt = DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $tipoffLocal, new DateTimeZone(config('timezone')));
-        if (!$dt || !in_array($bracketSize, [4, 8], true)) {
-            flash('error', 'Choose a valid bracket size and first-round tipoff.');
+        if (!in_array($bracketSize, [4, 8], true)) {
+            flash('error', 'Choose a valid bracket size.');
+            redirect('/manage/playoffs/new');
+        }
+        $tipoffs = self::parseTipoffList($_POST['tipoffs'] ?? [], $bracketSize / 2);
+        if ($tipoffs === null) {
+            flash('error', 'Set a tipoff for each first-round game.');
             redirect('/manage/playoffs/new');
         }
         try {
@@ -108,15 +165,135 @@ final class ManageController
                 (int) $season['id'],
                 $bracketSize,
                 Standings::compute((int) $season['id']),
-                $dt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+                $tipoffs,
                 $location
             );
         } catch (Throwable $e) {
             flash('error', $e->getMessage());
             redirect('/manage/playoffs/new');
         }
-        flash('success', 'Playoff bracket created and seeded from standings.');
-        redirect('/playoffs');
+        flash('success', 'Playoff bracket created. Adjust seeds or tipoffs below if needed.');
+        redirect('/manage/playoffs');
+    }
+
+    public static function playoffUpdateSeeds(): void
+    {
+        Auth::requireCommissioner();
+        verify_csrf();
+        $season = Database::activeSeason();
+        $tournament = $season ? Playoffs::findTournamentForSeason((int) $season['id']) : null;
+        if (!$tournament) {
+            flash('error', 'No playoff tournament.');
+            redirect('/manage');
+        }
+        $bracketSize = (int) $tournament['bracket_size'];
+        $seedToTeam = [];
+        $raw = $_POST['seed'] ?? [];
+        if (!is_array($raw)) {
+            flash('error', 'Invalid seeding.');
+            redirect('/manage/playoffs');
+        }
+        for ($seed = 1; $seed <= $bracketSize; $seed++) {
+            $seedToTeam[$seed] = (int) ($raw[$seed] ?? 0);
+        }
+        try {
+            Playoffs::applySeeds((int) $tournament['id'], $seedToTeam);
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+            redirect('/manage/playoffs');
+        }
+        flash('success', 'Playoff seeds updated.');
+        redirect('/manage/playoffs');
+    }
+
+    public static function playoffUpdateGames(): void
+    {
+        Auth::requireCommissioner();
+        verify_csrf();
+        $season = Database::activeSeason();
+        $tournament = $season ? Playoffs::findTournamentForSeason((int) $season['id']) : null;
+        if (!$tournament) {
+            flash('error', 'No playoff tournament.');
+            redirect('/manage');
+        }
+        $rows = $_POST['games'] ?? [];
+        if (!is_array($rows) || !$rows) {
+            flash('error', 'No games to update.');
+            redirect('/manage/playoffs');
+        }
+        $tz = new DateTimeZone((string) config('timezone'));
+        try {
+            foreach ($rows as $gameId => $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $tipoffLocal = trim((string) ($row['tipoff'] ?? ''));
+                $location = trim((string) ($row['location'] ?? ''));
+                $dt = DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $tipoffLocal, $tz);
+                if (!$dt) {
+                    throw new InvalidArgumentException('Invalid tipoff for a playoff game.');
+                }
+                Playoffs::updateGameSchedule(
+                    (int) $tournament['id'],
+                    (int) $gameId,
+                    $dt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+                    $location
+                );
+            }
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+            redirect('/manage/playoffs');
+        }
+        flash('success', 'Playoff game times updated.');
+        redirect('/manage/playoffs');
+    }
+
+    /** @return list<array{label: string, high: int, low: int}> */
+    private static function openingMatchupPreview(array $standings, int $bracketSize): array
+    {
+        if (!in_array($bracketSize, [4, 8], true) || count($standings) < $bracketSize) {
+            return [];
+        }
+        $order = Playoffs::seedSlotOrder($bracketSize);
+        $matchups = [];
+        for ($i = 0; $i + 1 < count($order); $i += 2) {
+            $seedA = $order[$i];
+            $seedB = $order[$i + 1];
+            $teamA = $standings[$seedA - 1]['team'] ?? null;
+            $teamB = $standings[$seedB - 1]['team'] ?? null;
+            if ($seedA <= $seedB) {
+                $label = '#' . $seedB . ' ' . ($teamB ? team_label($teamB) : 'TBD')
+                    . ' @ #' . $seedA . ' ' . ($teamA ? team_label($teamA) : 'TBD');
+            } else {
+                $label = '#' . $seedA . ' ' . ($teamA ? team_label($teamA) : 'TBD')
+                    . ' @ #' . $seedB . ' ' . ($teamB ? team_label($teamB) : 'TBD');
+            }
+            $matchups[] = [
+                'label' => $label,
+                'high' => min($seedA, $seedB),
+                'low' => max($seedA, $seedB),
+            ];
+        }
+        return $matchups;
+    }
+
+    /** @return list<string>|null UTC tipoffs */
+    private static function parseTipoffList(mixed $raw, int $expected): ?array
+    {
+        if (!is_array($raw) || count($raw) < $expected) {
+            return null;
+        }
+        $tz = new DateTimeZone((string) config('timezone'));
+        $out = [];
+        for ($i = 0; $i < $expected; $i++) {
+            $local = trim((string) ($raw[$i] ?? ''));
+            $dt = DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $local, $tz);
+            if (!$dt) {
+                return null;
+            }
+            $out[] = $dt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+        }
+        return $out;
     }
 
     public static function gameCreateForm(): void

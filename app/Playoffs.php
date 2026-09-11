@@ -70,12 +70,13 @@ final class Playoffs
      * Create tournament + empty bracket, seed round 1 from standings, create first-round games.
      *
      * @param list<array> $standingsRows from Standings::compute()
+     * @param string|list<string> $firstTipoffUtc One tipoff for all, or one per first-round matchup
      */
     public static function createFromStandings(
         int $seasonId,
         int $bracketSize,
         array $standingsRows,
-        string $firstTipoffUtc,
+        string|array $firstTipoffUtc,
         string $location = ''
     ): array {
         if (!in_array($bracketSize, [4, 8], true)) {
@@ -142,11 +143,14 @@ final class Playoffs
         return self::findTournament($tournamentId);
     }
 
+    /**
+     * @param string|list<string> $tipoffUtc One tipoff for all matchups, or one per matchup index.
+     */
     public static function createGamesForRound(
         int $tournamentId,
         int $round,
         int $seasonId,
-        string $tipoffUtc,
+        string|array $tipoffUtc,
         string $location = ''
     ): int {
         $pdo = Database::pdo();
@@ -181,12 +185,168 @@ final class Playoffs
                 $homeId = (int) $b['team_id'];
                 $awayId = (int) $a['team_id'];
             }
-            $insGame->execute([$seasonId, $homeId, $awayId, $tipoffUtc, $location]);
+            $matchupIndex = intdiv($i, 2);
+            $tip = is_array($tipoffUtc)
+                ? (string) ($tipoffUtc[$matchupIndex] ?? $tipoffUtc[0] ?? '')
+                : $tipoffUtc;
+            if ($tip === '') {
+                throw new InvalidArgumentException('Missing tipoff for matchup ' . ($matchupIndex + 1) . '.');
+            }
+            $insGame->execute([$seasonId, $homeId, $awayId, $tip, $location]);
             $gameId = (int) $pdo->lastInsertId();
             $link->execute([$gameId, (int) $a['id'], (int) $b['id']]);
             $created++;
         }
         return $created;
+    }
+
+    /** @return list<array> Playoff games for a tournament, ordered by tipoff. */
+    public static function gamesForTournament(int $tournamentId): array
+    {
+        $stmt = Database::pdo()->prepare(
+            'SELECT g.*,
+                    ht.display_name AS home_display_name,
+                    ht.team_number AS home_team_number,
+                    at.display_name AS away_display_name,
+                    at.team_number AS away_team_number,
+                    (SELECT MIN(s.round) FROM playoff_slots s
+                     WHERE s.game_id = g.id AND s.tournament_id = ?) AS round
+             FROM games g
+             JOIN teams ht ON ht.id = g.home_team_id
+             JOIN teams at ON at.id = g.away_team_id
+             WHERE g.phase = \'playoff\'
+               AND g.id IN (
+                 SELECT DISTINCT game_id FROM playoff_slots
+                 WHERE tournament_id = ? AND game_id IS NOT NULL
+               )
+             ORDER BY round, g.tipoff, g.id'
+        );
+        $stmt->execute([$tournamentId, $tournamentId]);
+        return $stmt->fetchAll();
+    }
+
+    /** Round-1 slots keyed by seed (1..N). */
+    public static function round1BySeed(int $tournamentId): array
+    {
+        $stmt = Database::pdo()->prepare(
+            'SELECT s.*,
+                    t.display_name AS team_display_name,
+                    t.team_number AS team_number
+             FROM playoff_slots s
+             LEFT JOIN teams t ON t.id = s.team_id
+             WHERE s.tournament_id = ? AND s.round = 1
+             ORDER BY s.seed'
+        );
+        $stmt->execute([$tournamentId]);
+        $bySeed = [];
+        foreach ($stmt->fetchAll() as $slot) {
+            if ($slot['seed'] !== null) {
+                $bySeed[(int) $slot['seed']] = $slot;
+            }
+        }
+        return $bySeed;
+    }
+
+    /**
+     * Reassign round-1 seeds/teams and sync scheduled first-round games.
+     * Blocked once any round-1 game is final.
+     *
+     * @param array<int, int> $seedToTeamId seed number => team id
+     */
+    public static function applySeeds(int $tournamentId, array $seedToTeamId): void
+    {
+        $tournament = self::findTournament($tournamentId);
+        if (!$tournament || $tournament['status'] !== 'in_progress') {
+            throw new RuntimeException('Playoffs are not editable.');
+        }
+        $bracketSize = (int) $tournament['bracket_size'];
+        if (count($seedToTeamId) !== $bracketSize) {
+            throw new InvalidArgumentException('Provide a team for every seed.');
+        }
+        $teamIds = array_values($seedToTeamId);
+        if (count(array_unique($teamIds)) !== $bracketSize) {
+            throw new InvalidArgumentException('Each team can only be seeded once.');
+        }
+        for ($seed = 1; $seed <= $bracketSize; $seed++) {
+            if (empty($seedToTeamId[$seed])) {
+                throw new InvalidArgumentException('Missing team for seed ' . $seed . '.');
+            }
+        }
+
+        $pdo = Database::pdo();
+        $finalCheck = $pdo->prepare(
+            'SELECT COUNT(*) FROM games g
+             JOIN playoff_slots s ON s.game_id = g.id
+             WHERE s.tournament_id = ? AND s.round = 1 AND g.status = \'final\''
+        );
+        $finalCheck->execute([$tournamentId]);
+        if ((int) $finalCheck->fetchColumn() > 0) {
+            throw new RuntimeException('Cannot change seeds after a first-round game is final.');
+        }
+
+        $seedOrder = self::seedSlotOrder($bracketSize);
+        $pdo->beginTransaction();
+        try {
+            $updSlot = $pdo->prepare(
+                'UPDATE playoff_slots SET team_id = ?, seed = ? WHERE tournament_id = ? AND round = 1 AND slot_index = ?'
+            );
+            foreach ($seedOrder as $slotIndex => $seed) {
+                $updSlot->execute([(int) $seedToTeamId[$seed], $seed, $tournamentId, $slotIndex]);
+            }
+
+            $slotsStmt = $pdo->prepare(
+                'SELECT * FROM playoff_slots WHERE tournament_id = ? AND round = 1 ORDER BY slot_index'
+            );
+            $slotsStmt->execute([$tournamentId]);
+            $slots = $slotsStmt->fetchAll();
+            $updGame = $pdo->prepare(
+                'UPDATE games SET home_team_id = ?, away_team_id = ? WHERE id = ? AND status = \'scheduled\''
+            );
+            for ($i = 0; $i + 1 < count($slots); $i += 2) {
+                $a = $slots[$i];
+                $b = $slots[$i + 1];
+                $gameId = (int) ($a['game_id'] ?? $b['game_id'] ?? 0);
+                if (!$gameId) {
+                    continue;
+                }
+                $seedA = (int) ($a['seed'] ?? PHP_INT_MAX);
+                $seedB = (int) ($b['seed'] ?? PHP_INT_MAX);
+                if ($seedA <= $seedB) {
+                    $homeId = (int) $a['team_id'];
+                    $awayId = (int) $b['team_id'];
+                } else {
+                    $homeId = (int) $b['team_id'];
+                    $awayId = (int) $a['team_id'];
+                }
+                $updGame->execute([$homeId, $awayId, $gameId]);
+            }
+            $pdo->commit();
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    /** Update tipoff/location for a playoff game in this tournament. */
+    public static function updateGameSchedule(
+        int $tournamentId,
+        int $gameId,
+        string $tipoffUtc,
+        string $location
+    ): void {
+        $check = Database::pdo()->prepare(
+            'SELECT g.id FROM games g
+             JOIN playoff_slots s ON s.game_id = g.id
+             WHERE g.id = ? AND s.tournament_id = ? AND g.phase = \'playoff\'
+             LIMIT 1'
+        );
+        $check->execute([$gameId, $tournamentId]);
+        if (!$check->fetch()) {
+            throw new RuntimeException('Playoff game not found.');
+        }
+        Database::pdo()->prepare(
+            'UPDATE games SET tipoff = ?, location = ? WHERE id = ?'
+        )->execute([$tipoffUtc, $location, $gameId]);
     }
 
     /** After a playoff game is finalized, advance the winner and maybe create the next game. */
