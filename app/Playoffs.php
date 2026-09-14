@@ -33,6 +33,51 @@ final class Playoffs
         };
     }
 
+    /** Letters used by matchups in rounds before $round (0-based matchup indexing within a round). */
+    public static function letterOffsetBeforeRound(int $round, int $bracketSize): int
+    {
+        $offset = 0;
+        for ($r = 1; $r < $round; $r++) {
+            $offset += (int) ($bracketSize / (2 ** $r));
+        }
+        return $offset;
+    }
+
+    public static function matchupLetter(int $round, int $matchupIndex, int $bracketSize): string
+    {
+        $n = self::letterOffsetBeforeRound($round, $bracketSize) + $matchupIndex;
+        if ($n < 0 || $n > 25) {
+            return (string) ($n + 1);
+        }
+        return chr(ord('A') + $n);
+    }
+
+    /** @return array{0: string, 1: string}|null Letters of the two prior matchups that feed this one. */
+    public static function feederLetters(int $round, int $matchupIndex, int $bracketSize): ?array
+    {
+        if ($round <= 1) {
+            return null;
+        }
+        return [
+            self::matchupLetter($round - 1, $matchupIndex * 2, $bracketSize),
+            self::matchupLetter($round - 1, $matchupIndex * 2 + 1, $bracketSize),
+        ];
+    }
+
+    public static function sideLabel(array $slot, ?string $feederLetter): string
+    {
+        if (!empty($slot['team_id'])) {
+            return team_label([
+                'display_name' => $slot['team_display_name'] ?? null,
+                'team_number' => $slot['team_number'] ?? null,
+            ]);
+        }
+        if ($feederLetter !== null && $feederLetter !== '') {
+            return 'Winner ' . $feederLetter;
+        }
+        return 'TBD';
+    }
+
     public static function findTournamentForSeason(int $seasonId): ?array
     {
         $stmt = Database::pdo()->prepare('SELECT * FROM playoff_tournaments WHERE season_id = ?');
@@ -186,13 +231,22 @@ final class Playoffs
                 $awayId = (int) $a['team_id'];
             }
             $matchupIndex = intdiv($i, 2);
-            $tip = is_array($tipoffUtc)
-                ? (string) ($tipoffUtc[$matchupIndex] ?? $tipoffUtc[0] ?? '')
-                : $tipoffUtc;
+            $planned = trim((string) ($a['planned_tipoff'] ?? $b['planned_tipoff'] ?? ''));
+            if ($planned !== '') {
+                $tip = $planned;
+            } else {
+                $tip = is_array($tipoffUtc)
+                    ? (string) ($tipoffUtc[$matchupIndex] ?? $tipoffUtc[0] ?? '')
+                    : $tipoffUtc;
+            }
             if ($tip === '') {
                 throw new InvalidArgumentException('Missing tipoff for matchup ' . ($matchupIndex + 1) . '.');
             }
-            $insGame->execute([$seasonId, $homeId, $awayId, $tip, $location]);
+            $loc = trim((string) ($a['planned_location'] ?? $b['planned_location'] ?? ''));
+            if ($loc === '') {
+                $loc = $location;
+            }
+            $insGame->execute([$seasonId, $homeId, $awayId, $tip, $loc]);
             $gameId = (int) $pdo->lastInsertId();
             $link->execute([$gameId, (int) $a['id'], (int) $b['id']]);
             $created++;
@@ -344,9 +398,153 @@ final class Playoffs
         if (!$check->fetch()) {
             throw new RuntimeException('Playoff game not found.');
         }
-        Database::pdo()->prepare(
+        $pdo = Database::pdo();
+        $pdo->prepare(
             'UPDATE games SET tipoff = ?, location = ? WHERE id = ?'
         )->execute([$tipoffUtc, $location, $gameId]);
+        $pdo->prepare(
+            'UPDATE playoff_slots SET planned_tipoff = ?, planned_location = ? WHERE game_id = ? AND tournament_id = ?'
+        )->execute([$tipoffUtc, $location, $gameId, $tournamentId]);
+    }
+
+    /**
+     * Set planned tipoff for a bracket matchup (by round + matchup index).
+     * Also updates the linked game when one exists.
+     */
+    public static function updateMatchupSchedule(
+        int $tournamentId,
+        int $round,
+        int $matchupIndex,
+        ?string $tipoffUtc,
+        string $location
+    ): void {
+        $tournament = self::findTournament($tournamentId);
+        if (!$tournament) {
+            throw new RuntimeException('Tournament not found.');
+        }
+        $slotA = $matchupIndex * 2;
+        $slotB = $slotA + 1;
+        $pdo = Database::pdo();
+        $stmt = $pdo->prepare(
+            'SELECT * FROM playoff_slots WHERE tournament_id = ? AND round = ? AND slot_index IN (?, ?) ORDER BY slot_index'
+        );
+        $stmt->execute([$tournamentId, $round, $slotA, $slotB]);
+        $slots = $stmt->fetchAll();
+        if (count($slots) < 2) {
+            throw new RuntimeException('Matchup not found.');
+        }
+        $pdo->prepare(
+            'UPDATE playoff_slots SET planned_tipoff = ?, planned_location = ?
+             WHERE tournament_id = ? AND round = ? AND slot_index IN (?, ?)'
+        )->execute([$tipoffUtc, $location, $tournamentId, $round, $slotA, $slotB]);
+
+        $gameId = (int) ($slots[0]['game_id'] ?? $slots[1]['game_id'] ?? 0);
+        if ($gameId && $tipoffUtc !== null && $tipoffUtc !== '') {
+            $pdo->prepare(
+                'UPDATE games SET tipoff = ?, location = ? WHERE id = ? AND status = \'scheduled\''
+            )->execute([$tipoffUtc, $location, $gameId]);
+        }
+    }
+
+    /**
+     * Enrich bracket matchups with letters, feeder placeholders, and effective tipoff.
+     *
+     * @param list<array> $matchups from matchupsForRound
+     * @return list<array>
+     */
+    public static function enrichMatchups(array $matchups, int $round, int $bracketSize, array $gamesById = []): array
+    {
+        foreach ($matchups as $i => &$m) {
+            $letter = self::matchupLetter($round, $i, $bracketSize);
+            $feeders = self::feederLetters($round, $i, $bracketSize);
+            $a = $m['slot_a'];
+            $b = $m['slot_b'];
+            $game = null;
+            if (!empty($m['game_id'])) {
+                $gid = (int) $m['game_id'];
+                $game = $gamesById[$gid] ?? null;
+            }
+            $plannedTip = trim((string) ($a['planned_tipoff'] ?? $b['planned_tipoff'] ?? ''));
+            $plannedLoc = (string) ($a['planned_location'] ?? $b['planned_location'] ?? '');
+            $tipoff = $game['tipoff'] ?? ($plannedTip !== '' ? $plannedTip : null);
+            $location = $game['location'] ?? $plannedLoc;
+            $m['letter'] = $letter;
+            $m['feeder_letters'] = $feeders;
+            $m['game'] = $game;
+            $m['tipoff'] = $tipoff;
+            $m['location'] = $location;
+            $m['label_a'] = self::sideLabel($a, $feeders[0] ?? null);
+            $m['label_b'] = self::sideLabel($b, $feeders[1] ?? null);
+            $m['round'] = $round;
+            $m['matchup_index'] = $i;
+        }
+        unset($m);
+        return $matchups;
+    }
+
+    /** Sort matchups by tipoff when known; undated matchups keep bracket order at the end. */
+    public static function sortMatchupsByTipoff(array $matchups): array
+    {
+        $indexed = array_values($matchups);
+        usort($indexed, static function (array $a, array $b): int {
+            $tipA = $a['tipoff'] ?? $a['game']['tipoff'] ?? null;
+            $tipB = $b['tipoff'] ?? $b['game']['tipoff'] ?? null;
+            if ($tipA === null && $tipB === null) {
+                return ($a['matchup_index'] ?? 0) <=> ($b['matchup_index'] ?? 0);
+            }
+            if ($tipA === null) {
+                return 1;
+            }
+            if ($tipB === null) {
+                return -1;
+            }
+            $cmp = strcmp((string) $tipA, (string) $tipB);
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+            return ($a['matchup_index'] ?? 0) <=> ($b['matchup_index'] ?? 0);
+        });
+        return $indexed;
+    }
+
+    /** All tournament matchups (including TBD later rounds) for manage UI. */
+    public static function allMatchups(int $tournamentId): array
+    {
+        $tournament = self::findTournament($tournamentId);
+        if (!$tournament) {
+            return [];
+        }
+        $bracketSize = (int) $tournament['bracket_size'];
+        $byRound = self::bracketByRound($tournamentId);
+        $gameIds = [];
+        foreach ($byRound as $slots) {
+            foreach ($slots as $slot) {
+                if (!empty($slot['game_id'])) {
+                    $gameIds[(int) $slot['game_id']] = true;
+                }
+            }
+        }
+        $gamesById = [];
+        if ($gameIds) {
+            $placeholders = implode(',', array_fill(0, count($gameIds), '?'));
+            $stmt = Database::pdo()->prepare(
+                "SELECT * FROM games WHERE id IN ($placeholders)"
+            );
+            $stmt->execute(array_keys($gameIds));
+            foreach ($stmt->fetchAll() as $row) {
+                $gamesById[(int) $row['id']] = $row;
+            }
+        }
+        $out = [];
+        foreach ($byRound as $roundNum => $slots) {
+            $matchups = self::matchupsForRound($slots);
+            $enriched = self::enrichMatchups($matchups, (int) $roundNum, $bracketSize, $gamesById);
+            foreach ($enriched as $m) {
+                $m['round_label'] = self::roundLabel((int) $roundNum, $bracketSize);
+                $out[] = $m;
+            }
+        }
+        return $out;
     }
 
     /** After a playoff game is finalized, advance the winner and maybe create the next game. */
@@ -429,16 +627,22 @@ final class Playoffs
             return;
         }
 
-        // Default tipoff: 7 days after this game, same clock time.
-        $tipoff = (new DateTimeImmutable($game['tipoff'], new DateTimeZone('UTC')))
-            ->modify('+7 days')
-            ->format('Y-m-d H:i:s');
+        $planned = trim((string) ($nextSlot['planned_tipoff'] ?? $mate['planned_tipoff'] ?? ''));
+        if ($planned !== '') {
+            $tipoff = $planned;
+        } else {
+            // Default tipoff: 7 days after this game, same clock time.
+            $tipoff = (new DateTimeImmutable($game['tipoff'], new DateTimeZone('UTC')))
+                ->modify('+7 days')
+                ->format('Y-m-d H:i:s');
+        }
+        $plannedLoc = trim((string) ($nextSlot['planned_location'] ?? $mate['planned_location'] ?? ''));
         self::createGamesForRound(
             $tournamentId,
             $round,
             (int) $tournament['season_id'],
             $tipoff,
-            (string) ($game['location'] ?? '')
+            $plannedLoc !== '' ? $plannedLoc : (string) ($game['location'] ?? '')
         );
     }
 

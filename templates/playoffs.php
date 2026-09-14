@@ -41,15 +41,13 @@
       <ul class="mt-3 space-y-3">
         <?php foreach ($round['matchups'] as $m): ?>
           <?php
+            $game = $m['game'];
+            $letter = $m['letter'] ?? '';
+            $tipoff = $m['tipoff'] ?? null;
+            $labelA = $m['label_a'] ?? 'TBD';
+            $labelB = $m['label_b'] ?? 'TBD';
             $a = $m['slot_a'];
             $b = $m['slot_b'];
-            $game = $m['game'];
-            $nameA = !empty($a['team_id'])
-              ? team_label(['display_name' => $a['team_display_name'], 'team_number' => $a['team_number']])
-              : 'TBD';
-            $nameB = !empty($b['team_id'])
-              ? team_label(['display_name' => $b['team_display_name'], 'team_number' => $b['team_number']])
-              : 'TBD';
           ?>
           <li>
             <?php if ($game): ?>
@@ -57,7 +55,10 @@
                 <div class="flex items-start justify-between gap-3">
                   <div>
                     <p class="text-xs font-medium uppercase tracking-wide text-court-400">
-                      Playoff · <?= e(format_tipoff($game['tipoff'])) ?>
+                      Game <?= e($letter) ?>
+                      <?php if ($tipoff): ?>
+                        · <?= e(format_tipoff($tipoff)) ?>
+                      <?php endif; ?>
                     </p>
                     <p class="mt-1 font-semibold">
                       <?= e($game['away_name']) ?>
@@ -84,12 +85,20 @@
               </a>
             <?php else: ?>
               <div class="rounded-xl border border-dashed border-court-200 bg-white px-4 py-3">
-                <p class="font-semibold text-court-700">
-                  <?= e($nameA) ?>
-                  <span class="font-normal text-court-400">vs</span>
-                  <?= e($nameB) ?>
+                <p class="text-xs font-medium uppercase tracking-wide text-court-400">
+                  Game <?= e($letter) ?>
+                  <?php if ($tipoff): ?>
+                    · <?= e(format_tipoff($tipoff)) ?>
+                  <?php endif; ?>
                 </p>
-                <p class="mt-1 text-xs text-court-500">Waiting on prior results</p>
+                <p class="mt-1 font-semibold text-court-700">
+                  <?= e($labelA) ?>
+                  <span class="font-normal text-court-400">vs</span>
+                  <?= e($labelB) ?>
+                </p>
+                <?php if (!$tipoff): ?>
+                  <p class="mt-1 text-xs text-court-500">Waiting on prior results</p>
+                <?php endif; ?>
               </div>
             <?php endif; ?>
           </li>

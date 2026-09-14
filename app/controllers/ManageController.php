@@ -84,7 +84,7 @@ final class ManageController
             'season' => $season,
             'standings' => $standings,
             'tournament' => null,
-            'games' => [],
+            'matchups' => [],
             'seeds' => [],
             'teams' => [],
             'canEditSeeds' => false,
@@ -108,10 +108,11 @@ final class ManageController
         if (!$tournament) {
             redirect('/manage/playoffs/new');
         }
-        $games = Playoffs::gamesForTournament((int) $tournament['id']);
+        $matchups = Playoffs::allMatchups((int) $tournament['id']);
         $canEditSeeds = true;
-        foreach ($games as $g) {
-            if ((int) ($g['round'] ?? 0) === 1 && ($g['status'] ?? '') === 'final') {
+        foreach ($matchups as $m) {
+            $g = $m['game'] ?? null;
+            if ((int) ($m['round'] ?? 0) === 1 && $g && ($g['status'] ?? '') === 'final') {
                 $canEditSeeds = false;
                 break;
             }
@@ -132,7 +133,7 @@ final class ManageController
             'season' => $season,
             'standings' => Standings::compute((int) $season['id']),
             'tournament' => $tournament,
-            'games' => $games,
+            'matchups' => $matchups,
             'seeds' => $seeds,
             'teams' => $teamsStmt->fetchAll(),
             'canEditSeeds' => $canEditSeeds,
@@ -216,27 +217,41 @@ final class ManageController
             flash('error', 'No playoff tournament.');
             redirect('/manage');
         }
-        $rows = $_POST['games'] ?? [];
+        $rows = $_POST['matchups'] ?? [];
         if (!is_array($rows) || !$rows) {
-            flash('error', 'No games to update.');
+            flash('error', 'No matchups to update.');
             redirect('/manage/playoffs');
         }
         $tz = new DateTimeZone((string) config('timezone'));
         try {
-            foreach ($rows as $gameId => $row) {
+            foreach ($rows as $key => $row) {
                 if (!is_array($row)) {
                     continue;
                 }
+                if (!preg_match('/^(\d+)_(\d+)$/', (string) $key, $m)) {
+                    continue;
+                }
+                $round = (int) $m[1];
+                $matchupIndex = (int) $m[2];
                 $tipoffLocal = trim((string) ($row['tipoff'] ?? ''));
                 $location = trim((string) ($row['location'] ?? ''));
-                $dt = DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $tipoffLocal, $tz);
-                if (!$dt) {
-                    throw new InvalidArgumentException('Invalid tipoff for a playoff game.');
+                $tipoffUtc = null;
+                if ($tipoffLocal !== '') {
+                    $dt = DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $tipoffLocal, $tz);
+                    if (!$dt) {
+                        throw new InvalidArgumentException('Invalid tipoff for Game ' . Playoffs::matchupLetter($round, $matchupIndex, (int) $tournament['bracket_size']) . '.');
+                    }
+                    $tipoffUtc = $dt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
                 }
-                Playoffs::updateGameSchedule(
+                // First-round games already exist — tipoff required.
+                if ($round === 1 && $tipoffUtc === null) {
+                    throw new InvalidArgumentException('First-round games need a tipoff.');
+                }
+                Playoffs::updateMatchupSchedule(
                     (int) $tournament['id'],
-                    (int) $gameId,
-                    $dt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+                    $round,
+                    $matchupIndex,
+                    $tipoffUtc,
                     $location
                 );
             }
@@ -244,7 +259,7 @@ final class ManageController
             flash('error', $e->getMessage());
             redirect('/manage/playoffs');
         }
-        flash('success', 'Playoff game times updated.');
+        flash('success', 'Playoff schedule updated.');
         redirect('/manage/playoffs');
     }
 

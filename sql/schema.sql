@@ -85,6 +85,8 @@ CREATE TABLE IF NOT EXISTS playoff_slots (
     seed INTEGER,
     game_id INTEGER REFERENCES games(id) ON DELETE SET NULL,
     feeds_slot_id INTEGER REFERENCES playoff_slots(id) ON DELETE SET NULL,
+    planned_tipoff TEXT,
+    planned_location TEXT NOT NULL DEFAULT '',
     UNIQUE (tournament_id, round, slot_index)
 );
 

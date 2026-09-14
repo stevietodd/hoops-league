@@ -13,38 +13,23 @@ final class PlayoffController
         $champion = null;
 
         if ($tournament) {
+            $bracketSize = (int) $tournament['bracket_size'];
             $byRound = Playoffs::bracketByRound((int) $tournament['id']);
             foreach ($byRound as $roundNum => $slots) {
                 $matchups = Playoffs::matchupsForRound($slots);
-                foreach ($matchups as &$m) {
+                foreach ($matchups as $m) {
                     if (!empty($m['game_id'])) {
                         $gid = (int) $m['game_id'];
                         if (!isset($gamesById[$gid])) {
                             $gamesById[$gid] = ScheduleController::findGame($gid);
                         }
-                        $m['game'] = $gamesById[$gid];
-                    } else {
-                        $m['game'] = null;
                     }
                 }
-                unset($m);
-                usort($matchups, static function (array $a, array $b): int {
-                    $tipA = $a['game']['tipoff'] ?? null;
-                    $tipB = $b['game']['tipoff'] ?? null;
-                    if ($tipA === null && $tipB === null) {
-                        return 0;
-                    }
-                    if ($tipA === null) {
-                        return 1;
-                    }
-                    if ($tipB === null) {
-                        return -1;
-                    }
-                    return strcmp((string) $tipA, (string) $tipB);
-                });
+                $matchups = Playoffs::enrichMatchups($matchups, (int) $roundNum, $bracketSize, $gamesById);
+                $matchups = Playoffs::sortMatchupsByTipoff($matchups);
                 $rounds[] = [
                     'round' => $roundNum,
-                    'label' => Playoffs::roundLabel($roundNum, (int) $tournament['bracket_size']),
+                    'label' => Playoffs::roundLabel((int) $roundNum, $bracketSize),
                     'matchups' => $matchups,
                 ];
             }

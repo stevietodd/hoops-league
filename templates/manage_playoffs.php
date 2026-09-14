@@ -83,51 +83,47 @@
   </script>
 <?php else: ?>
   <p class="mt-1 text-sm text-court-500">
-    Adjust first-round seeds and per-game tipoffs. Later rounds get default tipoffs when created; you can change those here too.
+    Set tipoffs for any round — including later games that still show as Winner A vs Winner B. Letters stay fixed to bracket position.
   </p>
 
   <form method="post" action="<?= e(url('/manage/playoffs/games')) ?>" class="mt-6 space-y-4 rounded-xl border border-court-100 bg-white p-4">
     <?= csrf_field() ?>
     <h2 class="font-display text-xl">Game times</h2>
-    <?php foreach ($games as $game): ?>
+    <?php foreach ($matchups as $m): ?>
       <?php
-        $home = [
-          'display_name' => $game['home_display_name'],
-          'team_number' => $game['home_team_number'],
-        ];
-        $away = [
-          'display_name' => $game['away_display_name'],
-          'team_number' => $game['away_team_number'],
-        ];
-        $gid = (int) $game['id'];
+        $key = (int) $m['round'] . '_' . (int) $m['matchup_index'];
+        $letter = $m['letter'] ?? '';
+        $required = (int) $m['round'] === 1;
       ?>
       <div class="border-t border-court-100 pt-4 first:border-0 first:pt-0">
         <p class="mb-2 text-sm font-medium">
-          <?= e(Playoffs::roundLabel((int) $game['round'], (int) $tournament['bracket_size'])) ?>:
-          <?= e(team_label($away)) ?> @ <?= e(team_label($home)) ?>
-          <?php if (($game['status'] ?? '') === 'final'): ?>
+          <?= e($m['round_label'] ?? '') ?> · Game <?= e($letter) ?>:
+          <?= e($m['label_a'] ?? 'TBD') ?>
+          <span class="text-court-400">vs</span>
+          <?= e($m['label_b'] ?? 'TBD') ?>
+          <?php if (!empty($m['game']) && ($m['game']['status'] ?? '') === 'final'): ?>
             <span class="text-court-400">(final)</span>
           <?php endif; ?>
         </p>
         <div class="grid gap-3 sm:grid-cols-2">
           <div>
-            <label class="mb-1 block text-xs text-court-500" for="tipoff_<?= $gid ?>">Tipoff</label>
-            <input class="field-input" type="datetime-local" name="games[<?= $gid ?>][tipoff]" id="tipoff_<?= $gid ?>"
-                   value="<?= e(tipoff_local_input($game['tipoff'] ?? null)) ?>" required>
+            <label class="mb-1 block text-xs text-court-500" for="tipoff_<?= e($key) ?>">Tipoff<?= $required ? '' : ' (optional)' ?></label>
+            <input class="field-input" type="datetime-local" name="matchups[<?= e($key) ?>][tipoff]" id="tipoff_<?= e($key) ?>"
+                   value="<?= e(tipoff_local_input($m['tipoff'] ?? null)) ?>" <?= $required ? 'required' : '' ?>>
           </div>
           <div>
-            <label class="mb-1 block text-xs text-court-500" for="loc_<?= $gid ?>">Location</label>
-            <input class="field-input" type="text" name="games[<?= $gid ?>][location]" id="loc_<?= $gid ?>"
-                   value="<?= e($game['location'] ?? '') ?>">
+            <label class="mb-1 block text-xs text-court-500" for="loc_<?= e($key) ?>">Location</label>
+            <input class="field-input" type="text" name="matchups[<?= e($key) ?>][location]" id="loc_<?= e($key) ?>"
+                   value="<?= e($m['location'] ?? '') ?>">
           </div>
         </div>
       </div>
     <?php endforeach; ?>
-    <?php if (!$games): ?>
-      <p class="text-sm text-court-500">No playoff games yet.</p>
+    <?php if (empty($matchups)): ?>
+      <p class="text-sm text-court-500">No playoff matchups yet.</p>
     <?php else: ?>
       <button type="submit" class="w-full rounded-lg bg-orange-ball px-4 py-3 font-semibold text-white">
-        Save game times
+        Save schedule
       </button>
     <?php endif; ?>
   </form>
