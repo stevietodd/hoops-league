@@ -29,10 +29,7 @@
   </p>
 
   <?php if ($champion): ?>
-    <div class="mt-6 rounded-xl border border-orange-ball/30 bg-orange-ball/10 px-4 py-4">
-      <p class="text-xs font-medium uppercase tracking-wide text-orange-ball">Champion</p>
-      <p class="mt-1 font-display text-2xl"><?= e(team_label($champion)) ?></p>
-    </div>
+    <?php require __DIR__ . '/_champion_banner.php'; ?>
   <?php endif; ?>
 
   <?php foreach ($rounds as $round): ?>
@@ -46,8 +43,8 @@
             $tipoff = $m['tipoff'] ?? null;
             $labelA = $m['label_a'] ?? 'TBD';
             $labelB = $m['label_b'] ?? 'TBD';
-            $a = $m['slot_a'];
-            $b = $m['slot_b'];
+            $seedA = $m['seed_a'] ?? null;
+            $seedB = $m['seed_b'] ?? null;
           ?>
           <li>
             <?php if ($game): ?>
@@ -61,21 +58,21 @@
                       <?php endif; ?>
                     </p>
                     <p class="mt-1 font-semibold">
-                      <?= e($game['away_name']) ?>
-                      <span class="font-normal text-court-400">@</span>
-                      <?= e($game['home_name']) ?>
+                      <?= e($labelA) ?>
+                      <span class="font-normal text-court-400">vs</span>
+                      <?= e($labelB) ?>
                     </p>
-                    <?php if ($a['seed'] || $b['seed']): ?>
+                    <?php if ($seedA !== null || $seedB !== null): ?>
                       <p class="mt-1 text-xs text-court-500">
-                        <?php if ($a['seed']): ?>#<?= (int) $a['seed'] ?><?php endif; ?>
-                        <?php if ($a['seed'] && $b['seed']): ?> vs <?php endif; ?>
-                        <?php if ($b['seed']): ?>#<?= (int) $b['seed'] ?><?php endif; ?>
+                        <?php if ($seedA !== null): ?>#<?= (int) $seedA ?><?php endif; ?>
+                        <?php if ($seedA !== null && $seedB !== null): ?> vs <?php endif; ?>
+                        <?php if ($seedB !== null): ?>#<?= (int) $seedB ?><?php endif; ?>
                       </p>
                     <?php endif; ?>
                   </div>
                   <div class="text-right">
-                    <?php if ($game['status'] === 'final' && $game['home_score'] !== null): ?>
-                      <p class="font-display text-lg leading-none"><?= (int) $game['away_score'] ?>–<?= (int) $game['home_score'] ?></p>
+                    <?php if ($game['status'] === 'final' && ($game['left_score'] ?? $game['home_score']) !== null): ?>
+                      <p class="font-display text-lg leading-none"><?= (int) ($game['left_score'] ?? $game['away_score']) ?>–<?= (int) ($game['right_score'] ?? $game['home_score']) ?></p>
                       <p class="mt-1 text-xs uppercase text-court-400">Final</p>
                     <?php else: ?>
                       <span class="rounded-full bg-court-100 px-2 py-1 text-xs text-court-600">Scheduled</span>

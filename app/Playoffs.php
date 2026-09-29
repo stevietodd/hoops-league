@@ -78,6 +78,20 @@ final class Playoffs
         return 'TBD';
     }
 
+    /** @return array<int, int> team_id => seed */
+    public static function seedsByTeamForGame(int $gameId): array
+    {
+        $stmt = Database::pdo()->prepare(
+            'SELECT team_id, seed FROM playoff_slots WHERE game_id = ? AND team_id IS NOT NULL AND seed IS NOT NULL'
+        );
+        $stmt->execute([$gameId]);
+        $out = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $out[(int) $row['team_id']] = (int) $row['seed'];
+        }
+        return $out;
+    }
+
     public static function findTournamentForSeason(int $seasonId): ?array
     {
         $stmt = Database::pdo()->prepare('SELECT * FROM playoff_tournaments WHERE season_id = ?');
@@ -465,16 +479,32 @@ final class Playoffs
                 $game = $gamesById[$gid] ?? null;
             }
             $plannedTip = trim((string) ($a['planned_tipoff'] ?? $b['planned_tipoff'] ?? ''));
-            $plannedLoc = (string) ($a['planned_location'] ?? $b['planned_location'] ?? '');
             $tipoff = $game['tipoff'] ?? ($plannedTip !== '' ? $plannedTip : null);
-            $location = $game['location'] ?? $plannedLoc;
+            $seedA = $a['seed'] !== null && $a['seed'] !== '' ? (int) $a['seed'] : null;
+            $seedB = $b['seed'] !== null && $b['seed'] !== '' ? (int) $b['seed'] : null;
+            $feederA = $feeders[0] ?? null;
+            $feederB = $feeders[1] ?? null;
+            // Better seed (lower number) first; otherwise keep bracket/feeder order.
+            $swap = $seedA !== null && $seedB !== null && $seedB < $seedA;
+            if ($swap) {
+                $labelLeft = self::sideLabel($b, $feederB);
+                $labelRight = self::sideLabel($a, $feederA);
+                $seedLeft = $seedB;
+                $seedRight = $seedA;
+            } else {
+                $labelLeft = self::sideLabel($a, $feederA);
+                $labelRight = self::sideLabel($b, $feederB);
+                $seedLeft = $seedA;
+                $seedRight = $seedB;
+            }
             $m['letter'] = $letter;
             $m['feeder_letters'] = $feeders;
             $m['game'] = $game;
             $m['tipoff'] = $tipoff;
-            $m['location'] = $location;
-            $m['label_a'] = self::sideLabel($a, $feeders[0] ?? null);
-            $m['label_b'] = self::sideLabel($b, $feeders[1] ?? null);
+            $m['label_a'] = $labelLeft;
+            $m['label_b'] = $labelRight;
+            $m['seed_a'] = $seedLeft;
+            $m['seed_b'] = $seedRight;
             $m['round'] = $round;
             $m['matchup_index'] = $i;
         }

@@ -41,7 +41,7 @@
   <ul class="space-y-2">
     <?php foreach ($upcoming as $game): ?>
       <li class="flex items-center justify-between rounded-lg border border-court-100 bg-white px-3 py-3 text-sm">
-        <span><?= e($game['away_abbrev']) ?> @ <?= e($game['home_abbrev']) ?> · <?= e(format_tipoff($game['tipoff'], 'M j, g:i A')) ?></span>
+        <span><?= e($game['left_abbrev']) ?> vs <?= e($game['right_abbrev']) ?> · <?= e(format_tipoff($game['tipoff'], 'M j, g:i A')) ?></span>
         <a href="<?= e(url('/manage/games/' . $game['id'] . '/edit')) ?>" class="text-orange-ball">Edit</a>
       </li>
     <?php endforeach; ?>

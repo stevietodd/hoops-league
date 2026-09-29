@@ -18,6 +18,9 @@ final class HomeController
             'teams' => $teams,
             'upcomingDate' => $upcoming['date'],
             'upcomingGames' => $upcoming['games'],
+            'champion' => !empty($season['champion_team_id'])
+                ? find_team((int) $season['champion_team_id'])
+                : null,
         ]);
     }
 

@@ -40,17 +40,14 @@
                 <?= e(format_tipoff($game['tipoff'])) ?>
               </p>
               <p class="mt-1 font-semibold">
-                <?= e($game['away_name']) ?>
-                <span class="font-normal text-court-400">@</span>
-                <?= e($game['home_name']) ?>
+                <?= e($game['left_name']) ?>
+                <span class="font-normal text-court-400">vs</span>
+                <?= e($game['right_name']) ?>
               </p>
-              <?php if ($game['location']): ?>
-                <p class="mt-1 text-sm text-court-500"><?= e($game['location']) ?></p>
-              <?php endif; ?>
             </div>
             <div class="text-right">
-              <?php if ($game['status'] === 'final' && $game['home_score'] !== null): ?>
-                <p class="font-display text-lg leading-none"><?= (int) $game['away_score'] ?>–<?= (int) $game['home_score'] ?></p>
+              <?php if ($game['status'] === 'final' && $game['left_score'] !== null): ?>
+                <p class="font-display text-lg leading-none"><?= (int) $game['left_score'] ?>–<?= (int) $game['right_score'] ?></p>
                 <p class="mt-1 text-xs uppercase text-court-400">Final</p>
               <?php else: ?>
                 <span class="rounded-full bg-court-100 px-2 py-1 text-xs text-court-600">Scheduled</span>

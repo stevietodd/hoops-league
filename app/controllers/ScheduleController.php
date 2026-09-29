@@ -62,7 +62,7 @@ final class ScheduleController
             return;
         }
         render('game_detail', [
-            'title' => $game['away_name'] . ' @ ' . $game['home_name'],
+            'title' => $game['matchup_label'] ?? ($game['left_name'] . ' vs ' . $game['right_name']),
             'game' => $game,
             'canReport' => Auth::canReportScore($game),
         ]);
@@ -214,6 +214,15 @@ final class ScheduleController
         $row['away_name'] = team_label($away);
         $row['home_abbrev'] = team_short($home);
         $row['away_abbrev'] = team_short($away);
-        return $row;
+
+        $homeSeed = null;
+        $awaySeed = null;
+        if (($row['phase'] ?? 'regular') === 'playoff' && !empty($row['id'])) {
+            $seeds = Playoffs::seedsByTeamForGame((int) $row['id']);
+            $homeSeed = $seeds[(int) $row['home_team_id']] ?? null;
+            $awaySeed = $seeds[(int) $row['away_team_id']] ?? null;
+        }
+
+        return apply_matchup_display_order($row, $homeSeed, $awaySeed);
     }
 }

@@ -136,3 +136,48 @@ function tipoff_local_input(?string $utc): string
     $dt = new DateTimeImmutable($utc, new DateTimeZone('UTC'));
     return $dt->setTimezone(new DateTimeZone((string) config('timezone')))->format('Y-m-d\TH:i');
 }
+
+/**
+ * Set left/right display sides for a game: better seed first when known, else A–Z by team name.
+ * Expects home_name / away_name (and optional scores) already set.
+ *
+ * @param array<string, mixed> $row
+ * @return array<string, mixed>
+ */
+function apply_matchup_display_order(array $row, ?int $homeSeed = null, ?int $awaySeed = null): array
+{
+    $homeFirst = true;
+    if ($homeSeed !== null && $awaySeed !== null) {
+        $homeFirst = $homeSeed <= $awaySeed;
+    } else {
+        $homeFirst = strcasecmp((string) ($row['home_name'] ?? ''), (string) ($row['away_name'] ?? '')) <= 0;
+    }
+
+    if ($homeFirst) {
+        $row['left_name'] = $row['home_name'] ?? '';
+        $row['right_name'] = $row['away_name'] ?? '';
+        $row['left_abbrev'] = $row['home_abbrev'] ?? '';
+        $row['right_abbrev'] = $row['away_abbrev'] ?? '';
+        $row['left_score'] = $row['home_score'] ?? null;
+        $row['right_score'] = $row['away_score'] ?? null;
+        $row['left_seed'] = $homeSeed;
+        $row['right_seed'] = $awaySeed;
+        $row['left_is_home'] = true;
+        $row['left_team_id'] = $row['home_team_id'] ?? null;
+        $row['right_team_id'] = $row['away_team_id'] ?? null;
+    } else {
+        $row['left_name'] = $row['away_name'] ?? '';
+        $row['right_name'] = $row['home_name'] ?? '';
+        $row['left_abbrev'] = $row['away_abbrev'] ?? '';
+        $row['right_abbrev'] = $row['home_abbrev'] ?? '';
+        $row['left_score'] = $row['away_score'] ?? null;
+        $row['right_score'] = $row['home_score'] ?? null;
+        $row['left_seed'] = $awaySeed;
+        $row['right_seed'] = $homeSeed;
+        $row['left_is_home'] = false;
+        $row['left_team_id'] = $row['away_team_id'] ?? null;
+        $row['right_team_id'] = $row['home_team_id'] ?? null;
+    }
+    $row['matchup_label'] = $row['left_name'] . ' vs ' . $row['right_name'];
+    return $row;
+}

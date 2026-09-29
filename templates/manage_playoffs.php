@@ -21,11 +21,6 @@
       </select>
     </div>
     <div>
-      <label class="mb-1 block text-sm font-medium" for="location">Location</label>
-      <input class="field-input" type="text" name="location" id="location" value="">
-    </div>
-
-    <div>
       <p class="mb-2 text-sm font-medium">First-round tipoffs</p>
       <div class="space-y-3" id="opening-tipoffs"></div>
     </div>
@@ -105,17 +100,10 @@
             <span class="text-court-400">(final)</span>
           <?php endif; ?>
         </p>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label class="mb-1 block text-xs text-court-500" for="tipoff_<?= e($key) ?>">Tipoff<?= $required ? '' : ' (optional)' ?></label>
-            <input class="field-input" type="datetime-local" name="matchups[<?= e($key) ?>][tipoff]" id="tipoff_<?= e($key) ?>"
-                   value="<?= e(tipoff_local_input($m['tipoff'] ?? null)) ?>" <?= $required ? 'required' : '' ?>>
-          </div>
-          <div>
-            <label class="mb-1 block text-xs text-court-500" for="loc_<?= e($key) ?>">Location</label>
-            <input class="field-input" type="text" name="matchups[<?= e($key) ?>][location]" id="loc_<?= e($key) ?>"
-                   value="<?= e($m['location'] ?? '') ?>">
-          </div>
+        <div>
+          <label class="mb-1 block text-xs text-court-500" for="tipoff_<?= e($key) ?>">Tipoff<?= $required ? '' : ' (optional)' ?></label>
+          <input class="field-input" type="datetime-local" name="matchups[<?= e($key) ?>][tipoff]" id="tipoff_<?= e($key) ?>"
+                 value="<?= e(tipoff_local_input($m['tipoff'] ?? null)) ?>" <?= $required ? 'required' : '' ?>>
         </div>
       </div>
     <?php endforeach; ?>

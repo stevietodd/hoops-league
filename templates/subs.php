@@ -43,7 +43,7 @@
     <?php if ($game): ?>
       <p class="mt-1">
         <span class="text-court-400">Game</span> ·
-        <?= e($game['away_name']) ?> @ <?= e($game['home_name']) ?>
+        <?= e($game['matchup_label'] ?? ($game['left_name'] . ' vs ' . $game['right_name'])) ?>
         · <?= e(format_tipoff($game['tipoff'])) ?>
       </p>
     <?php endif; ?>
@@ -107,9 +107,7 @@
              class="block rounded-xl border border-court-100 bg-white px-4 py-3">
             <p class="text-xs font-medium uppercase tracking-wide text-court-400"><?= e(format_tipoff($g['tipoff'])) ?></p>
             <p class="mt-1 font-semibold">
-              <?= e($g['away_name']) ?>
-              <span class="font-normal text-court-400">@</span>
-              <?= e($g['home_name']) ?>
+              <?= e($g['matchup_label'] ?? ($g['left_name'] . ' vs ' . $g['right_name'])) ?>
             </p>
             <?php if ($g['status'] === 'final'): ?>
               <p class="mt-1 text-xs uppercase text-court-400">Final</p>

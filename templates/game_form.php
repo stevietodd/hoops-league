@@ -16,7 +16,7 @@
     </select>
   </div>
   <div>
-    <label class="mb-1 block text-sm font-medium" for="home_team_id">Home team</label>
+    <label class="mb-1 block text-sm font-medium" for="home_team_id">Team</label>
     <select class="field-input" name="home_team_id" id="home_team_id" required>
       <?php foreach ($teams as $team): ?>
         <option value="<?= (int) $team['id'] ?>" <?= ($game['home_team_id'] ?? null) == $team['id'] ? 'selected' : '' ?>>
@@ -26,7 +26,7 @@
     </select>
   </div>
   <div>
-    <label class="mb-1 block text-sm font-medium" for="away_team_id">Away team</label>
+    <label class="mb-1 block text-sm font-medium" for="away_team_id">Opponent</label>
     <select class="field-input" name="away_team_id" id="away_team_id" required>
       <?php foreach ($teams as $team): ?>
         <option value="<?= (int) $team['id'] ?>" <?= ($game['away_team_id'] ?? null) == $team['id'] ? 'selected' : '' ?>>
@@ -39,10 +39,6 @@
     <label class="mb-1 block text-sm font-medium" for="tipoff">Tipoff</label>
     <input class="field-input" type="datetime-local" name="tipoff" id="tipoff" required
            value="<?= e(tipoff_local_input($game['tipoff'] ?? null)) ?>">
-  </div>
-  <div>
-    <label class="mb-1 block text-sm font-medium" for="location">Location</label>
-    <input class="field-input" type="text" name="location" id="location" value="<?= e($game['location'] ?? '') ?>">
   </div>
   <div>
     <label class="mb-1 block text-sm font-medium" for="status">Status</label>

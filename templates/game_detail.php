@@ -10,27 +10,29 @@
     <?= e(format_tipoff($game['tipoff'], 'l, F j · g:i A')) ?>
   </p>
   <h1 class="mt-3 font-display text-2xl leading-tight sm:text-3xl">
-    <?= e($game['away_name']) ?>
-    <span class="text-court-400">@</span>
-    <?= e($game['home_name']) ?>
+    <?= e($game['left_name']) ?>
+    <span class="text-court-400">vs</span>
+    <?= e($game['right_name']) ?>
   </h1>
-  <?php if ($game['location']): ?>
-    <p class="mt-2 text-court-500"><?= e($game['location']) ?></p>
+  <?php if (($game['phase'] ?? 'regular') === 'playoff' && ($game['left_seed'] !== null || $game['right_seed'] !== null)): ?>
+    <p class="mt-2 text-sm text-court-500">
+      <?php if ($game['left_seed'] !== null): ?>#<?= (int) $game['left_seed'] ?><?php endif; ?>
+      <?php if ($game['left_seed'] !== null && $game['right_seed'] !== null): ?> vs <?php endif; ?>
+      <?php if ($game['right_seed'] !== null): ?>#<?= (int) $game['right_seed'] ?><?php endif; ?>
+    </p>
   <?php endif; ?>
 
-  <?php if ($game['status'] === 'final' && $game['home_score'] !== null): ?>
+  <?php if ($game['status'] === 'final' && $game['left_score'] !== null): ?>
     <div class="mt-6 flex items-end justify-center gap-6">
       <div class="text-center">
-        <p class="text-sm text-court-500"><?= e($game['away_abbrev'] ?: $game['away_name']) ?></p>
-        <p class="font-display text-5xl <?= (int)$game['away_score'] > (int)$game['home_score'] ? 'text-court-900' : 'text-court-400' ?>">
-          <?= (int) $game['away_score'] ?>
+        <p class="font-display text-5xl <?= (int)$game['left_score'] > (int)$game['right_score'] ? 'text-court-900' : 'text-court-400' ?>">
+          <?= (int) $game['left_score'] ?>
         </p>
       </div>
       <span class="pb-2 text-court-300">–</span>
       <div class="text-center">
-        <p class="text-sm text-court-500"><?= e($game['home_abbrev'] ?: $game['home_name']) ?></p>
-        <p class="font-display text-5xl <?= (int)$game['home_score'] > (int)$game['away_score'] ? 'text-court-900' : 'text-court-400' ?>">
-          <?= (int) $game['home_score'] ?>
+        <p class="font-display text-5xl <?= (int)$game['right_score'] > (int)$game['left_score'] ? 'text-court-900' : 'text-court-400' ?>">
+          <?= (int) $game['right_score'] ?>
         </p>
       </div>
     </div>

@@ -48,7 +48,14 @@ final class ManageController
                 $row['away_abbrev'] = team_short($away);
                 $row['home_name'] = team_label($home);
                 $row['away_name'] = team_label($away);
-                return $row;
+                $homeSeed = null;
+                $awaySeed = null;
+                if (($row['phase'] ?? 'regular') === 'playoff') {
+                    $seeds = Playoffs::seedsByTeamForGame((int) $row['id']);
+                    $homeSeed = $seeds[(int) $row['home_team_id']] ?? null;
+                    $awaySeed = $seeds[(int) $row['away_team_id']] ?? null;
+                }
+                return apply_matchup_display_order($row, $homeSeed, $awaySeed);
             }, $stmt->fetchAll());
         }
 
@@ -118,16 +125,6 @@ final class ManageController
             }
         }
         $seeds = Playoffs::round1BySeed((int) $tournament['id']);
-        $teamsStmt = Database::pdo()->prepare(
-            'SELECT t.*,
-                    p.display_name AS captain_display_name,
-                    p.current_ranking AS captain_ranking
-             FROM teams t
-             JOIN players p ON p.id = t.captain_id
-             WHERE t.season_id = ?
-             ORDER BY CAST(t.team_number AS INTEGER), t.team_number, t.display_name'
-        );
-        $teamsStmt->execute([(int) $season['id']]);
         render('manage_playoffs', [
             'title' => 'Manage playoffs',
             'season' => $season,
@@ -135,7 +132,7 @@ final class ManageController
             'tournament' => $tournament,
             'matchups' => $matchups,
             'seeds' => $seeds,
-            'teams' => $teamsStmt->fetchAll(),
+            'teams' => Database::pdo()->query(teams_with_captain_query())->fetchAll(),
             'canEditSeeds' => $canEditSeeds,
             'openingMatchups' => [],
         ]);
@@ -151,7 +148,6 @@ final class ManageController
             redirect('/manage');
         }
         $bracketSize = (int) ($_POST['bracket_size'] ?? 8);
-        $location = trim((string) ($_POST['location'] ?? ''));
         if (!in_array($bracketSize, [4, 8], true)) {
             flash('error', 'Choose a valid bracket size.');
             redirect('/manage/playoffs/new');
@@ -167,7 +163,7 @@ final class ManageController
                 $bracketSize,
                 Standings::compute((int) $season['id']),
                 $tipoffs,
-                $location
+                ''
             );
         } catch (Throwable $e) {
             flash('error', $e->getMessage());
@@ -234,7 +230,6 @@ final class ManageController
                 $round = (int) $m[1];
                 $matchupIndex = (int) $m[2];
                 $tipoffLocal = trim((string) ($row['tipoff'] ?? ''));
-                $location = trim((string) ($row['location'] ?? ''));
                 $tipoffUtc = null;
                 if ($tipoffLocal !== '') {
                     $dt = DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $tipoffLocal, $tz);
@@ -252,7 +247,7 @@ final class ManageController
                     $round,
                     $matchupIndex,
                     $tipoffUtc,
-                    $location
+                    ''
                 );
             }
         } catch (Throwable $e) {
@@ -277,11 +272,11 @@ final class ManageController
             $teamA = $standings[$seedA - 1]['team'] ?? null;
             $teamB = $standings[$seedB - 1]['team'] ?? null;
             if ($seedA <= $seedB) {
-                $label = '#' . $seedB . ' ' . ($teamB ? team_label($teamB) : 'TBD')
-                    . ' @ #' . $seedA . ' ' . ($teamA ? team_label($teamA) : 'TBD');
-            } else {
                 $label = '#' . $seedA . ' ' . ($teamA ? team_label($teamA) : 'TBD')
-                    . ' @ #' . $seedB . ' ' . ($teamB ? team_label($teamB) : 'TBD');
+                    . ' vs #' . $seedB . ' ' . ($teamB ? team_label($teamB) : 'TBD');
+            } else {
+                $label = '#' . $seedB . ' ' . ($teamB ? team_label($teamB) : 'TBD')
+                    . ' vs #' . $seedA . ' ' . ($teamA ? team_label($teamA) : 'TBD');
             }
             $matchups[] = [
                 'label' => $label,
@@ -426,7 +421,6 @@ final class ManageController
         $homeId = (int) ($_POST['home_team_id'] ?? 0);
         $awayId = (int) ($_POST['away_team_id'] ?? 0);
         $tipoffLocal = trim((string) ($_POST['tipoff'] ?? ''));
-        $location = trim((string) ($_POST['location'] ?? ''));
         $status = ($_POST['status'] ?? 'scheduled') === 'final' ? 'final' : 'scheduled';
 
         if (!$seasonId || !$homeId || !$awayId || $homeId === $awayId || $tipoffLocal === '') {
@@ -445,7 +439,7 @@ final class ManageController
             'home_team_id' => $homeId,
             'away_team_id' => $awayId,
             'tipoff' => $dt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
-            'location' => $location,
+            'location' => '',
             'status' => $status,
         ];
     }
