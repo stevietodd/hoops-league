@@ -32,6 +32,14 @@
                   'team_number' => $s['champion_team_number'],
               ])) ?>
             </p>
+            <?php if (!empty($s['champion_players'])): ?>
+              <p class="mt-1 text-sm text-court-500">
+                <?= e(implode(', ', array_map(
+                    static fn (array $p): string => $p['display_name'] . (!empty($p['is_captain']) ? ' (C)' : ''),
+                    $s['champion_players']
+                ))) ?>
+              </p>
+            <?php endif; ?>
           <?php endif; ?>
         </div>
         <?php if ($isCurrent): ?>

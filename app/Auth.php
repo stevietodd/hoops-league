@@ -25,11 +25,12 @@ final class Auth
     private static function loadPlayerForUser(int $userId): ?array
     {
         $stmt = Database::pdo()->prepare(
-            'SELECT p.*, tr.team_id,
+            'SELECT p.*, t.id AS team_id,
                     (t.captain_id = p.id) AS is_captain
              FROM players p
-             LEFT JOIN team_roster tr ON tr.player_id = p.id
-             LEFT JOIN teams t ON t.id = tr.team_id
+             LEFT JOIN teams t
+               ON t.season_id = ' . Database::activeSeasonIdSql() . '
+              AND t.id IN (SELECT team_id FROM team_roster WHERE player_id = p.id)
              WHERE p.user_id = ?
              LIMIT 1'
         );

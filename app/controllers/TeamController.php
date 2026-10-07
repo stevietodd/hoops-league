@@ -137,8 +137,37 @@ final class TeamController
             flash('error', 'Team display name is required.');
             redirect('/teams/' . $teamId);
         }
-        Database::pdo()->prepare('UPDATE teams SET display_name = ? WHERE id = ?')->execute([$display, $teamId]);
-        flash('success', 'Updated team name to ' . $display . '.');
+        $pdo = Database::pdo();
+        $pdo->prepare('UPDATE teams SET display_name = ? WHERE id = ?')->execute([$display, $teamId]);
+        $message = 'Updated team name to ' . $display . '.';
+
+        if (Auth::isCommissioner() && isset($_POST['team_number'])) {
+            $number = trim((string) $_POST['team_number']);
+            $team = find_team($teamId);
+            if ($team && $number !== '' && $number !== (string) $team['team_number']) {
+                if (!ctype_digit($number)) {
+                    flash('error', 'Team number must be a whole number.');
+                    redirect('/teams/' . $teamId);
+                }
+                $number = (string) (int) $number;
+                $pdo->beginTransaction();
+                $other = $pdo->prepare('SELECT id, display_name FROM teams WHERE season_id = ? AND team_number = ? AND id != ?');
+                $other->execute([$team['season_id'], $number, $teamId]);
+                $otherTeam = $other->fetch();
+                if ($otherTeam) {
+                    $pdo->prepare('UPDATE teams SET team_number = ? WHERE id = ?')
+                        ->execute([(string) $team['team_number'], (int) $otherTeam['id']]);
+                }
+                $pdo->prepare('UPDATE teams SET team_number = ? WHERE id = ?')->execute([$number, $teamId]);
+                $pdo->commit();
+                $message = $display . ' is now #' . $number . '.';
+                if ($otherTeam) {
+                    $message .= ' ' . $otherTeam['display_name'] . ' moved to #' . $team['team_number'] . '.';
+                }
+            }
+        }
+
+        flash('success', $message);
         redirect('/teams/' . $teamId);
     }
 

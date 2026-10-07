@@ -147,6 +147,7 @@ final class SubFinderController
                 JOIN team_roster tr ON tr.player_id = p.id
                 JOIN teams t ON t.id = tr.team_id
                 WHERE tr.team_id NOT IN ({$placeholders})
+                  AND t.season_id = " . Database::activeSeasonIdSql() . "
                   AND p.current_ranking != ''
                   AND CAST(p.current_ranking AS REAL) <= ?
                 ORDER BY CAST(p.current_ranking AS REAL) DESC, p.display_name";

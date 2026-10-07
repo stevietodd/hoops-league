@@ -44,6 +44,7 @@ function teams_with_captain_query(string $orderBy = 'CAST(team_number AS INTEGER
                    (SELECT COUNT(*) FROM team_roster tr WHERE tr.team_id = t.id) AS player_count
             FROM teams t
             JOIN players p ON p.id = t.captain_id
+            WHERE t.season_id = " . Database::activeSeasonIdSql() . "
             ORDER BY {$orderBy}";
 }
 

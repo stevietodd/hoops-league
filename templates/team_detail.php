@@ -15,10 +15,16 @@
 
 <?php if ($canManage): ?>
   <section class="mt-6 rounded-xl border border-court-100 bg-white p-4">
-    <h2 class="font-display text-lg">Team display name</h2>
-    <p class="mt-1 text-sm text-court-500">Shown on standings, schedule, and rosters.</p>
+    <h2 class="font-display text-lg"><?= $isCommissioner ? 'Team number &amp; name' : 'Team display name' ?></h2>
+    <p class="mt-1 text-sm text-court-500">
+      Shown on standings, schedule, and rosters.<?= $isCommissioner ? ' Changing the number to one another team has swaps the two.' : '' ?>
+    </p>
     <form method="post" action="<?= e(url('/teams/' . $team['id'] . '/update')) ?>" class="mt-3 flex gap-2">
       <?= csrf_field() ?>
+      <?php if ($isCommissioner): ?>
+        <input class="field-input w-20 shrink-0" type="number" min="1" name="team_number" value="<?= e((string) $team['team_number']) ?>"
+               aria-label="Team number" title="Team number (swaps with the team that has it)">
+      <?php endif; ?>
       <input class="field-input" type="text" name="display_name" value="<?= e($team['display_name']) ?>"
              placeholder="Team display name" required aria-label="Team display name">
       <button type="submit" class="shrink-0 rounded-lg border border-court-200 bg-white px-4 py-3 font-medium">Save</button>

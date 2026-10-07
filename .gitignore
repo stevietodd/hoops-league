@@ -17,3 +17,4 @@ data/*.db
 # Local league import (may contain real roster/schedule data)
 **/load_summer_2026.py
 imports/summer-2026/
+imports/fall-2026/

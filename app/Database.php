@@ -31,6 +31,27 @@ final class Database
         }
 
         self::migratePlayoffs();
+        self::migrateTeamSeasons();
+    }
+
+    public static function migrateTeamSeasons(): void
+    {
+        $pdo = self::pdo();
+        $teamCols = array_column($pdo->query('PRAGMA table_info(teams)')->fetchAll(), 'name');
+        if (!in_array('season_id', $teamCols, true)) {
+            $pdo->exec('ALTER TABLE teams ADD COLUMN season_id INTEGER REFERENCES seasons(id) ON DELETE CASCADE');
+        }
+        $pdo->exec(
+            'UPDATE teams
+             SET season_id = (SELECT id FROM seasons ORDER BY is_active DESC, id DESC LIMIT 1)
+             WHERE season_id IS NULL'
+        );
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_teams_season ON teams(season_id)');
+    }
+
+    public static function activeSeasonIdSql(): string
+    {
+        return '(SELECT id FROM seasons WHERE is_active = 1 ORDER BY id DESC LIMIT 1)';
     }
 
     public static function pdo(): PDO
